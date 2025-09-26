@@ -16,6 +16,15 @@ namespace ChatApp.Presentation
             builder.Services.AddInfrastructureService(builder.Configuration);
             builder.Services.AddApplicationService(builder.Configuration);
 
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowNextJs",
+                    policy => policy.WithOrigins("http://localhost:3000") // địa chỉ Next.js
+                                    .AllowAnyHeader()
+                                    .AllowAnyMethod()
+                                    .AllowCredentials());
+            });
+
             var app = builder.Build();
 
             app.UseInfrastructurePolicy();

@@ -12,6 +12,7 @@ namespace ChatApp.Presentation.Controllers
         private Guid GetCurrentUser()
         {
             var userClaim = User.FindFirst(ClaimTypes.NameIdentifier).Value;
+
             return Guid.Parse(userClaim!);
         }
 
