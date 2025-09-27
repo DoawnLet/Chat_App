@@ -7,7 +7,6 @@ using ChatApp.Domain.Entities;
 using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Polly;
 
 namespace ChatApp.Infrastructure.Services
 {
@@ -342,10 +341,117 @@ namespace ChatApp.Infrastructure.Services
             return new Response(true, "Update role member successfully");
         }
 
+        //Mute
+        public async Task<Response> MuteConvervasationAsync(Guid userId, Guid conversationId, MuteConversationDto request)
+        {
+            var converMember = await context.ConversationMembers.FirstOrDefaultAsync(c => c.User.Id == userId && c.Conversation.Id == conversationId);
+
+            if (converMember is null) return new Response(false, "You are not a member of coversation");
+
+            converMember.MutedUntil = request.MutedUnit;
+            await context.SaveChangesAsync();
+
+            return new Response(true, "Add new member of conversation successfully");
+        }
+
+        public async Task<GenericResponse<ConversationDto>> GetConversation(Guid userId, Guid coversationId)
+        {
+            var conversation = await context.Conversations
+                .Include(c => c.Members)
+                .ThenInclude(m => m.User)
+                .FirstOrDefaultAsync(c => c.Id == coversationId);
+
+            if (conversation is null) return new GenericResponse<ConversationDto>(false, "Conversation do not have item");
+
+            if (!conversation.Members.Any(m => m.UserId == userId))
+                return new GenericResponse<ConversationDto>(false, "You are not member in conversation");
+
+            return new GenericResponse<ConversationDto>(true, "This is list item of conversation", mapper.Map<ConversationDto>(conversation));
+        }
+
+        public async Task<PagedResult<ConversationSummaryDto>> GetMembersAsync(Guid userId, int page = 1, int pageSize = 20)
+        {
+            var query = context.ConversationMembers.Include(m => m.Conversation)
+                .ThenInclude(c => c.Members).ThenInclude(m => m.User)
+                .Where(m => m.UserId == userId)
+                .OrderByDescending(m => m.Conversation.LastMessageAt ?? m.Conversation.CreatedAt);
+
+            var totalQuery = await query.CountAsync();
+            var items = await query
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(c => c.Conversation)
+                .ToListAsync();
+
+            var select = items.Select(c => CraeteConversationSummary(c, userId)).ToList();
+
+            return new PagedResult<ConversationSummaryDto>
+            {
+                Items = select,
+                TotalCount = totalQuery,
+                PageNumber = page,
+                PageSize = pageSize
+            };
+        }
+
+        public async Task<GenericResponse<ConversationDto>> FindOrCreateDirectCovnersationAsync(Guid userId, string handle)
+        {
+            var targetUser = await context.Users.FirstOrDefaultAsync(u => u.Handle == handle && u.IsActive);
+
+            if (targetUser is null) return new GenericResponse<ConversationDto>(false, "Not found user");
+
+            var directKey = utils.GenerateDirectkey(userId, targetUser.Id);
+
+            var existingConversation = await context.Conversations.Include(c => c.Members)
+                .ThenInclude(c => c.UserId)
+                .FirstOrDefaultAsync(c => c.DirectKey == directKey);
+
+            if (existingConversation is null)
+                return new GenericResponse<ConversationDto>(true, "Conversation is existed", mapper.Map<ConversationDto>(existingConversation));
+
+            var creatNewRequest = new CreateDirectConversationDto { TargetHandle = handle };
+            return await CreateDirectConversationAsync(userId, creatNewRequest);
+        }
+
         private async Task<Conversation> LoadConversationMember(Guid conversationId)
         {
             return await context.Conversations.Include(c => c.Members).ThenInclude(m => m.User)
                 .FirstAsync(c => c.Id == conversationId);
+        }
+
+        private ConversationSummaryDto CraeteConversationSummary(Conversation conversation, Guid currentUserId)
+        {
+            var currentUserMembership = conversation.Members.First(m => m.UserId == currentUserId);
+
+            string displayName;
+            string? avatar;
+
+            if (conversation.Type == ConversationType.Group)
+            {
+                displayName = conversation.Title ?? "Unnamed Group";
+                avatar = conversation.AvatarUrl;
+            }
+            else
+            {
+                // Direct conversation: hiển thị thông tin của user kia
+                var otherUser = conversation.Members.First(m => m.UserId != currentUserId).User;
+                displayName = otherUser.DisplayName;
+                avatar = otherUser.AvatarUrl;
+            }
+
+            return new ConversationSummaryDto
+            {
+                Id = conversation.Id,
+                ConversationType = conversation.Type,
+                DisplayName = displayName,
+                Avatar = avatar,
+                LastMessageAt = conversation.LastMessageAt,
+                LastMessagePreview = "Last message preview...", // TODO: implement
+                UnreadCount = 0, // TODO: calculate based on LastReadSeq
+                IsMuted = currentUserMembership.MutedUntil.HasValue &&
+                         currentUserMembership.MutedUntil.Value > DateTimeOffset.UtcNow,
+                MutedUntil = currentUserMembership.MutedUntil
+            };
         }
     }
 }

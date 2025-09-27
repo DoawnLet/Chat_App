@@ -138,5 +138,19 @@ namespace ChatApp.Presentation.Controllers
 
             return Ok(new { message = "Member role updated successfully" });
         }
+
+        ///<summary>
+        /// Đồng bộ conversation MuteUnit
+        ///</summary>
+        [HttpPost("{conversationId}")]
+        public async Task<IActionResult> MutedConversation(Guid conversationId, MuteConversationDto request)
+        {
+            var userId = GetCurrentUser();
+            var result = await service.MuteConvervasationAsync(userId, conversationId, request);
+
+            if (!result.Flag) return BadRequest(new { error = result.Message });
+
+            return Ok(new { message = "Muted conversation successfully" });
+        }
     }
 }

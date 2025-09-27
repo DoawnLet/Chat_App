@@ -24,6 +24,14 @@ namespace ChatApp.Application.Abstractions.IServices
 
         Task<Response> UpdateMemberRoleAsync(Guid userId, Guid conversationId, UpdateMemberRoleDto request);
 
-        //
+        //Muting
+        Task<Response> MuteConvervasationAsync(Guid userId, Guid conversationId, MuteConversationDto request);
+
+        //Queries
+        Task<GenericResponse<ConversationDto>> GetConversation(Guid userId, Guid coversationId);
+
+        Task<PagedResult<ConversationSummaryDto>> GetMembersAsync(Guid userId, int page = 1, int pageSize = 20);
+
+        Task<GenericResponse<ConversationDto>> FindOrCreateDirectCovnersationAsync(Guid userId, string handle);
     }
 }
