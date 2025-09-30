@@ -10,12 +10,12 @@ const Footer = () => {
               <a href="https://flowbite.com/" className="flex items-center">
                 {/* Logo in here */}
                 <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">
-                  Flowbite
+                  ChatApp
                 </span>
               </a>
             </div>
-            <div className="grid grid-cols-2 gap-8 sm:gap-6 sm:grid-cols-3">
-              <div>
+            <div className="grid grid-cols-3 gap-4 sm:gap-6 sm:grid-cols-3">
+              <div className="">
                 <h2 className="mb-6 text-sm font-semibold text-gray-900 uppercase dark:text-white">
                   Resources
                 </h2>

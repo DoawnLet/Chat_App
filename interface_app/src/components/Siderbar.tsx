@@ -5,10 +5,10 @@ const Siderbar = () => {
     <>
       <aside
         id="separator-sidebar"
-        className="sticky top-16 left-0 z-30 w-64 h-screen bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700"
+        className="sticky top-16 left-0 z-30 w-64  bg-gray-50 dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700"
         aria-label="Sidebar"
       >
-        <div className="h-full px-2 py-3 overflow-y-auto">
+        <div className="px-2 py-3 overflow-y-auto">
           <ul className="space-y-2 font-medium">
             <li>
               <a

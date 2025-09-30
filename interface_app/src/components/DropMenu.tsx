@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 
 const DropMenu = () => {
@@ -106,13 +107,13 @@ const DropMenu = () => {
             </li>
           </ul>
           <div className="py-2">
-            <a
-              href="#"
+            <Link
+              href="/login"
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
               onClick={handleMenuClick}
             >
               Sign out
-            </a>
+            </Link>
           </div>
         </div>
       </div>

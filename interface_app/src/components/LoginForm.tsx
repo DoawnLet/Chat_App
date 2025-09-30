@@ -1,3 +1,5 @@
+"user client ";
+
 import { cn } from "@/lib/utils";
 import { Card, CardContent } from "./ui/card";
 import { Label } from "@radix-ui/react-label";
