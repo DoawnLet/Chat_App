@@ -28,11 +28,18 @@ namespace ChatApp.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Note")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("varbinary(max)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -41,6 +48,9 @@ namespace ChatApp.Infrastructure.Data.Migrations
 
                     b.Property<Guid>("TargetId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
 

@@ -1,5 +1,6 @@
 ﻿using ChatApp.Application.Abstractions.IRepositories;
 using ChatApp.Application.Abstractions.IServices;
+using ChatApp.Application.BackGroundServices;
 using ChatApp.Application.DependencyInjection;
 using ChatApp.Application.Helps;
 using ChatApp.Application.Helps.Mapping;
@@ -36,6 +37,7 @@ namespace ChatApp.Infrastructure.DependencyInjection
             services.AddScoped<IContactService, ContactService>();
             services.AddScoped<Utils>();
             services.AddScoped<IConversationService, ConversationService>();
+            services.AddHostedService<ConversationUnmuteService>();
 
             return services;
         }

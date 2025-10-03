@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ChatApp.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250908114325_First")]
+    [Migration("20251001082833_First")]
     partial class First
     {
         /// <inheritdoc />
@@ -31,11 +31,18 @@ namespace ChatApp.Infrastructure.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Note")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .HasColumnType("varbinary(max)");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -44,6 +51,9 @@ namespace ChatApp.Infrastructure.Data.Migrations
 
                     b.Property<Guid>("TargetId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.HasKey("Id");
 

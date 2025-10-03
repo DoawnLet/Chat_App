@@ -1,5 +1,8 @@
-﻿using ChatApp.Application.DependencyInjection;
+﻿using ChatApp.Application.Abstractions.IServices;
+using ChatApp.Application.DependencyInjection;
 using ChatApp.Infrastructure.DependencyInjection;
+using ChatApp.Presentation.Realtime;
+using ChatApp.Presentation.Realtime.ChatHubs;
 
 namespace ChatApp.Presentation
 {
@@ -15,6 +18,8 @@ namespace ChatApp.Presentation
 
             builder.Services.AddInfrastructureService(builder.Configuration);
             builder.Services.AddApplicationService(builder.Configuration);
+            builder.Services.AddScoped<IMessageBus, SignalRMessageBus>();
+            builder.Services.AddSignalR();
 
             builder.Services.AddCors(options =>
             {
@@ -26,9 +31,12 @@ namespace ChatApp.Presentation
             });
 
             var app = builder.Build();
+            {
+                app.UseInfrastructurePolicy();
+                app.UseSwagger();
+            }
 
-            app.UseInfrastructurePolicy();
-            app.UseSwagger();
+            app.MapHub<ChatHub>("/hubs/chat");
             app.UseSwaggerUI();
 
             app.UseHttpsRedirection();

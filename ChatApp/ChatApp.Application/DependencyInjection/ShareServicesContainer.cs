@@ -6,11 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ChatApp.Application.DependencyInjection
 {
@@ -31,6 +26,7 @@ namespace ChatApp.Application.DependencyInjection
                outputTemplate: "{TimeStamp:YYYY-MM-dd HH:mm:ss fff zzz} [{Level:u3}] {message:lj}{NewLine}{Exception}",
                rollingInterval: RollingInterval.Day).CreateLogger();
 
+            //JWT
             JWTAuthenticationScheme.AddJWTAuthenticationScheme(service, config);
 
             return service;

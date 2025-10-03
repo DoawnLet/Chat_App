@@ -1,5 +1,6 @@
 ﻿using ChatApp.Application.DTOs;
 using ChatApp.Application.Exceptions.Responses;
+using ChatApp.Domain.Enum;
 
 namespace ChatApp.Application.Abstractions.IServices
 {
@@ -28,10 +29,19 @@ namespace ChatApp.Application.Abstractions.IServices
         Task<Response> MuteConvervasationAsync(Guid userId, Guid conversationId, MuteConversationDto request);
 
         //Queries
-        Task<GenericResponse<ConversationDto>> GetConversation(Guid userId, Guid coversationId);
+        Task<GenericResponse<ConversationDto>> GetConversationAsync(Guid userId, Guid coversationId);
 
         Task<PagedResult<ConversationSummaryDto>> GetMembersAsync(Guid userId, int page = 1, int pageSize = 20);
 
         Task<GenericResponse<ConversationDto>> FindOrCreateDirectCovnersationAsync(Guid userId, string handle);
+
+        //Helper
+        Task<bool> CanUserAccessConversationAsync(Guid conversationId, Guid userId);
+
+        Task<int> CalculateUnreadCountAsync(Guid conversationId, Guid userId);
+
+        Task<bool> HasPermissionAsync(Guid conversationId, Guid userId, params MemberRole[] requiredRoles);
+
+        Task<string> GetLastMessagePreviewAsync(Guid conversationId);
     }
 }

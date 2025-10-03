@@ -83,7 +83,10 @@ namespace ChatApp.Infrastructure.Data.Migrations
                     OwnerId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TargetId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Status = table.Column<string>(type: "nvarchar(16)", maxLength: 16, nullable: false),
-                    Note = table.Column<string>(type: "nvarchar(max)", nullable: true)
+                    Note = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    CreatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    UpdatedAt = table.Column<DateTimeOffset>(type: "datetimeoffset", nullable: false),
+                    RowVersion = table.Column<byte[]>(type: "varbinary(max)", nullable: true)
                 },
                 constraints: table =>
                 {

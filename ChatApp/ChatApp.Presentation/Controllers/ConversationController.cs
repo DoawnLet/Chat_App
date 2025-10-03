@@ -32,7 +32,10 @@ namespace ChatApp.Presentation.Controllers
                 return BadRequest(new { error = result.Message });
             }
 
-            return Ok(result);
+            var conversation = result.Data;
+            conversation.UnreadCount = await service.CalculateUnreadCountAsync(conversation.Id, userId);
+
+            return Ok(conversation);
         }
 
         /// <summary>
@@ -140,7 +143,7 @@ namespace ChatApp.Presentation.Controllers
         }
 
         ///<summary>
-        /// Đồng bộ conversation MuteUnit
+        /// Mute/unmute conversation
         ///</summary>
         [HttpPost("{conversationId}")]
         public async Task<IActionResult> MutedConversation(Guid conversationId, MuteConversationDto request)
@@ -150,7 +153,35 @@ namespace ChatApp.Presentation.Controllers
 
             if (!result.Flag) return BadRequest(new { error = result.Message });
 
-            return Ok(new { message = "Muted conversation successfully" });
+            return Ok(new { message = "Conversation mute status updated" });
+        }
+
+        ///<summary>
+        /// Lấy thông tin chi tiết conversation
+        ///</summary>
+        [HttpGet("{conversationId}")]
+        public async Task<IActionResult> GetConversation(Guid conversationId)
+        {
+            var userId = GetCurrentUser();
+            var result = await service.GetConversationAsync(userId, conversationId);
+
+            if (!result.Flag)
+            {
+                return BadRequest(new { error = result.Message });
+            }
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách conversations của user
+        /// </summary>
+        [HttpGet]
+        public async Task<IActionResult> GetUserConversation([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        {
+            var userId = GetCurrentUser();
+            var result = await service.GetMembersAsync(userId, page, pageSize);
+            return Ok(result);
         }
     }
 }

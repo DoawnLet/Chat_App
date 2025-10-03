@@ -354,7 +354,7 @@ namespace ChatApp.Infrastructure.Services
             return new Response(true, "Add new member of conversation successfully");
         }
 
-        public async Task<GenericResponse<ConversationDto>> GetConversation(Guid userId, Guid coversationId)
+        public async Task<GenericResponse<ConversationDto>> GetConversationAsync(Guid userId, Guid coversationId)
         {
             var conversation = await context.Conversations
                 .Include(c => c.Members)
@@ -411,6 +411,53 @@ namespace ChatApp.Infrastructure.Services
 
             var creatNewRequest = new CreateDirectConversationDto { TargetHandle = handle };
             return await CreateDirectConversationAsync(userId, creatNewRequest);
+        }
+
+        public async Task<int> CalculateUnreadCountAsync(Guid conversationId, Guid userId)
+        {
+            var membership = await context.ConversationMembers
+                .FirstOrDefaultAsync(m => m.ConversationId == conversationId && m.UserId == userId);
+
+            if (membership is null) return 0;
+
+            var unreadCount = await context.Messages.Where(m => m.ConversationId == conversationId && m.Seq > membership.LastReadSeq && m.SenderId != userId &&
+            m.DeletedAt == null).CountAsync();
+
+            return unreadCount;
+        }
+
+        public async Task<bool> CanUserAccessConversationAsync(Guid conversationId, Guid userId)
+        {
+            return await context.ConversationMembers.AnyAsync(m => m.ConversationId == conversationId && m.UserId == userId);
+        }
+
+        public async Task<bool> HasPermissionAsync(Guid conversationId, Guid userId, params MemberRole[] requiredRoles)
+        {
+            var membership = await context.ConversationMembers
+                .FirstOrDefaultAsync(m => m.ConversationId == conversationId && m.UserId == userId);
+
+            return membership != null && requiredRoles.Contains(membership.Role);
+        }
+
+        public async Task<string> GetLastMessagePreviewAsync(Guid conversationId)
+        {
+            var lastMessage = await context.Messages.
+                Where(m => m.ConversationId == conversationId && m.DeletedAt == null)
+                .OrderByDescending(m => m.Seq)
+                .Select(m => new { m.Type, m.Body, m.Sender.DisplayName })
+                .FirstOrDefaultAsync();
+
+            if (lastMessage == null) return string.Empty;
+
+            return lastMessage.Type switch
+            {
+                MessageType.Text => lastMessage.Body.Length > 50 ?
+                    lastMessage.Body.Substring(0, 47) + "..." : lastMessage.Body,
+                MessageType.Image => $"{lastMessage.DisplayName} sent an image",
+                MessageType.File => $"{lastMessage.DisplayName} sent a file",
+                MessageType.System => "System message",
+                _ => "New message"
+            };
         }
 
         private async Task<Conversation> LoadConversationMember(Guid conversationId)
