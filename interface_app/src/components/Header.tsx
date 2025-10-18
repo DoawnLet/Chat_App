@@ -1,83 +1,153 @@
+"use client";
+
 import React from "react";
 import DropMenu from "./DropMenu";
 import TaskSearch from "./Search";
 import Link from "next/link";
+import { Button } from "./ui/button";
+import { Menu, X } from "lucide-react";
+import Notification from "./Notification";
 
 const Header = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
   return (
     <>
-      <nav className="bg-white border-gray-200 dark:bg-gray-900">
-        <div className="flex flex-wrap items-center justify-between mx-auto px-10 py-6 pb-2">
-          <Link
-            href="/"
-            className="flex items-center space-x-3 rtl:space-x-reverse"
-          >
-            <span className="self-center text-3xl font-semibold whitespace-nowrap dark:text-white text-pink-800">
-              ChimeApp
-            </span>
-          </Link>
-          <div className="flex items-center md:order-2 space-x-3 md:space-x-0 rtl:space-x-reverse">
-            <DropMenu />
-          </div>
+      <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <nav className="w-full px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between max-w-full">
+            {/* Left Side - Logo and Search */}
+            <div className="flex items-center space-x-6">
+              {/* Logo */}
+              <Link
+                href="/"
+                className="flex items-center space-x-2 transition-colors hover:text-primary"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold text-sm">
+                  C
+                </div>
+                <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                  ChimeApp
+                </span>
+              </Link>
 
-          <div className="grid grid-cols-3 gap-38">
-            {/* Controler bar */}
-            <div
-              className="items-center justify-between hidden w-full md:flex md:w-auto md:order-1 "
-              id="navbar-user"
-            >
-              <ul className="flex flex-col font-medium p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50 md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
-                <li>
-                  <Link
-                    href="#"
-                    className="block py-2 px-3 text-white bg-blue-700 rounded-sm md:bg-transparent md:text-blue-700 md:p-0 md:dark:text-blue-500"
-                    aria-current="page"
-                  >
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="block py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                  >
-                    About
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="block py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                  >
-                    Services
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="#"
-                    className="block py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                  >
-                    Pricing
-                  </Link>
-                </li>
-                <li>
-                  <a
-                    href="#"
-                    className="block py-2 px-3 text-gray-900 rounded-sm hover:bg-gray-100 md:hover:bg-transparent md:hover:text-blue-700 md:p-0 dark:text-white md:dark:hover:text-blue-500 dark:hover:bg-gray-700 dark:hover:text-white md:dark:hover:bg-transparent dark:border-gray-700"
-                  >
-                    Contact
-                  </a>
-                </li>
-              </ul>
+              {/* Search - Desktop */}
+              <div className="hidden sm:block">
+                <TaskSearch />
+              </div>
             </div>
 
-            {/* Search bar */}
-            <div>
-              <TaskSearch />
+            {/* Desktop Navigation */}
+            <nav className="hidden md:flex items-center space-x-8">
+              <Link
+                href="/"
+                className="text-sm font-medium transition-colors hover:text-primary text-primary"
+              >
+                Home
+              </Link>
+              <Link
+                href="/about"
+                className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
+              >
+                About
+              </Link>
+              <Link
+                href="/services"
+                className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
+              >
+                Services
+              </Link>
+              <Link
+                href="/pricing"
+                className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
+              >
+                Pricing
+              </Link>
+              <Link
+                href="/contact"
+                className="text-sm font-medium transition-colors hover:text-primary text-muted-foreground"
+              >
+                Contact
+              </Link>
+            </nav>
+
+            {/* Right Side Actions */}
+            <div className="flex items-center space-x-4">
+              {/* Notification */}
+              <Notification />
+
+              {/* User Menu */}
+              <DropMenu />
+
+              {/* Mobile Menu Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="md:hidden"
+                onClick={toggleMobileMenu}
+              >
+                {isMobileMenuOpen ? (
+                  <X className="h-5 w-5" />
+                ) : (
+                  <Menu className="h-5 w-5" />
+                )}
+              </Button>
             </div>
           </div>
-        </div>
-      </nav>
+
+          {/* Mobile Navigation Menu */}
+          {isMobileMenuOpen && (
+            <div className="md:hidden">
+              <div className="space-y-1 pb-4 pt-2">
+                {/* Mobile Search */}
+                <div className="px-3 pb-3 sm:hidden">
+                  <TaskSearch />
+                </div>
+
+                <Link
+                  href="/"
+                  className="block px-3 py-2 text-sm font-medium transition-colors hover:text-primary text-primary rounded-md hover:bg-accent"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/about"
+                  className="block px-3 py-2 text-sm font-medium transition-colors hover:text-primary text-muted-foreground rounded-md hover:bg-accent"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  About
+                </Link>
+                <Link
+                  href="/services"
+                  className="block px-3 py-2 text-sm font-medium transition-colors hover:text-primary text-muted-foreground rounded-md hover:bg-accent"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Services
+                </Link>
+                <Link
+                  href="/pricing"
+                  className="block px-3 py-2 text-sm font-medium transition-colors hover:text-primary text-muted-foreground rounded-md hover:bg-accent"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Pricing
+                </Link>
+                <Link
+                  href="/contact"
+                  className="block px-3 py-2 text-sm font-medium transition-colors hover:text-primary text-muted-foreground rounded-md hover:bg-accent"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Contact
+                </Link>
+              </div>
+            </div>
+          )}
+        </nav>
+      </header>
     </>
   );
 };

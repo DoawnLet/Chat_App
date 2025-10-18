@@ -23,36 +23,44 @@ import {
   AlertCircle,
   Phone,
   Calendar,
+  AtSign,
+  Upload,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import { authService } from "@/services/auth/auth.service";
+import { RegisterRequest } from "@/services/auth/auth.types";
+import { getErrorMessage } from "@/lib/axios";
 
 interface FormData {
-  firstName: string;
-  lastName: string;
+  handle: string;
+  displayName: string; // ✅ Thay đổi: firstName + lastName → displayName
   email: string;
   phone: string;
   dateOfBirth: string;
   password: string;
   confirmPassword: string;
   acceptTerms: boolean;
+  avatar?: File; // ✅ Thêm mới: file upload
 }
 
 interface FormErrors {
-  firstName?: string;
-  lastName?: string;
+  handle?: string;
+  displayName?: string; // ✅ Thay đổi
   email?: string;
   phone?: string;
   dateOfBirth?: string;
   password?: string;
   confirmPassword?: string;
   acceptTerms?: string;
+  avatar?: string; // ✅ Thêm mới
   general?: string;
 }
 
 const RegisterForm = () => {
   const [formData, setFormData] = useState<FormData>({
-    firstName: "",
-    lastName: "",
+    handle: "",
+    displayName: "", // ✅ Thay đổi
     email: "",
     phone: "",
     dateOfBirth: "",
@@ -66,22 +74,28 @@ const RegisterForm = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null); // ✅ Thêm mới
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Validate first name
-    if (!formData.firstName.trim()) {
-      newErrors.firstName = "Tên là bắt buộc";
-    } else if (formData.firstName.trim().length < 2) {
-      newErrors.firstName = "Tên phải có ít nhất 2 ký tự";
+    // ✅ Validate handle (giữ nguyên logic cũ)
+    const handleRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!formData.handle.trim()) {
+      newErrors.handle = "Handle là bắt buộc";
+    } else if (!handleRegex.test(formData.handle)) {
+      newErrors.handle = "Handle chỉ chứa chữ, số, dấu gạch dưới (3-20 ký tự)";
+    } else if (formData.handle.length < 3) {
+      newErrors.handle = "Handle phải có ít nhất 3 ký tự";
     }
 
-    // Validate last name
-    if (!formData.lastName.trim()) {
-      newErrors.lastName = "Họ là bắt buộc";
-    } else if (formData.lastName.trim().length < 2) {
-      newErrors.lastName = "Họ phải có ít nhất 2 ký tự";
+    // ✅ Validate displayName (thay thế firstName + lastName)
+    if (!formData.displayName.trim()) {
+      newErrors.displayName = "Tên hiển thị là bắt buộc";
+    } else if (formData.displayName.trim().length < 2) {
+      newErrors.displayName = "Tên hiển thị phải có ít nhất 2 ký tự";
+    } else if (formData.displayName.trim().length > 100) {
+      newErrors.displayName = "Tên hiển thị không được quá 100 ký tự";
     }
 
     // Validate email
@@ -93,11 +107,11 @@ const RegisterForm = () => {
     }
 
     // Validate phone
-    const phoneRegex = /^[0-9]{10,11}$/;
+    const phoneRegex = /^[0-9+\-\s\(\)]{10,15}$/;
     if (!formData.phone) {
       newErrors.phone = "Số điện thoại là bắt buộc";
     } else if (!phoneRegex.test(formData.phone.replace(/\s/g, ""))) {
-      newErrors.phone = "Số điện thoại không hợp lệ (10-11 số)";
+      newErrors.phone = "Số điện thoại không hợp lệ";
     }
 
     // Validate date of birth
@@ -131,6 +145,23 @@ const RegisterForm = () => {
       newErrors.confirmPassword = "Mật khẩu xác nhận không khớp";
     }
 
+    // ✅ Validate avatar (optional)
+    // if (formData.avatar) {
+    //   const maxSize = 5 * 1024 * 1024; // 5MB
+    //   const allowedTypes = [
+    //     "image/jpeg",
+    //     "image/jpg",
+    //     "image/png",
+    //     "image/webp",
+    //   ];
+
+    //   if (formData.avatar.size > maxSize) {
+    //     newErrors.avatar = "Kích thước file không được vượt quá 5MB";
+    //   } else if (!allowedTypes.includes(formData.avatar.type)) {
+    //     newErrors.avatar = "Chỉ chấp nhận file ảnh (JPEG, PNG, WebP)";
+    //   }
+    // }
+
     // Validate terms acceptance
     if (!formData.acceptTerms) {
       newErrors.acceptTerms = "Bạn phải đồng ý với điều khoản sử dụng";
@@ -142,12 +173,45 @@ const RegisterForm = () => {
 
   const handleInputChange = (
     field: keyof FormData,
-    value: string | boolean
+    value: string | boolean | File
   ) => {
+    // ✅ Auto-format handle
+    if (field === "handle" && typeof value === "string") {
+      value = value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    }
+
     setFormData((prev) => ({ ...prev, [field]: value }));
+
     // Clear error when user starts typing
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
+  // ✅ Cleanup URL when component unmounts
+  const cleanupPreview = () => {
+    if (avatarPreview) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+  };
+
+  // ✅ Handle avatar upload
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Cleanup previous preview
+      cleanupPreview();
+
+      setFormData((prev) => ({ ...prev, avatar: file }));
+
+      // Create new preview
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarPreview(previewUrl);
+
+      // Clear previous avatar error
+      if (errors.avatar) {
+        setErrors((prev) => ({ ...prev, avatar: undefined }));
+      }
     }
   };
 
@@ -160,15 +224,44 @@ const RegisterForm = () => {
     setErrors({});
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      let avatarUrl: string | undefined;
 
-      // Simulate success
-      setIsSuccess(true);
-      console.log("Form submitted:", formData);
+      // // ✅ Upload avatar if provided
+      // if (formData.avatar) {
+      //   try {
+      //     avatarUrl = await authService.uploadAvatar(formData.avatar);
+      //   } catch (error) {
+      //     console.error("Avatar upload failed:", error);
+      //     setErrors({ avatar: "Không thể tải ảnh lên. Vui lòng thử lại." });
+      //     setIsLoading(false);
+      //     return;
+      //   }
+      // }
+
+      // ✅ Prepare data theo format mới
+      const registerData: RegisterRequest = {
+        handle: formData.handle,
+        displayName: formData.displayName, // ✅ Thay đổi
+        password: formData.password,
+        dateOfBirth: formData.dateOfBirth,
+        email: formData.email,
+        phone: formData.phone,
+        avatarUrl, // ✅ Thêm mới
+      };
+
+      console.log("Sending register data:", registerData);
+
+      const result = await authService.register(registerData);
+
+      if (result.flag) {
+        setIsSuccess(true);
+        console.log("Registration successful:", result);
+      } else {
+        setErrors({ general: result.message });
+      }
     } catch (error) {
-      console.log("Error", error);
-      setErrors({ general: "Có lỗi xảy ra. Vui lòng thử lại." });
+      console.error("Registration error:", error);
+      setErrors({ general: getErrorMessage(error) || "Đã có lỗi xảy ra" });
     } finally {
       setIsLoading(false);
     }
@@ -200,7 +293,7 @@ const RegisterForm = () => {
 
   if (isSuccess) {
     return (
-      <Card className="w-full max-w-md mx-auto border-border bg-card shadow-lg">
+      <Card className="w-full max-w-2xl mx-auto border-border bg-card shadow-lg">
         <CardContent className="pt-6">
           <div className="text-center">
             <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
@@ -208,8 +301,10 @@ const RegisterForm = () => {
               Đăng ký thành công! 🎉
             </h3>
             <p className="text-muted-foreground mb-6">
-              Chúng tôi đã gửi email xác nhận đến <br />
-              <span className="font-medium text-primary">{formData.email}</span>
+              Chào mừng <br />
+              <span className="font-medium text-primary">
+                {formData.displayName}
+              </span>
             </p>
             <Button className="w-full" size="lg">
               <Link href="/login">Đăng nhập ngay</Link>
@@ -248,70 +343,124 @@ const RegisterForm = () => {
               Thông tin cá nhân
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="firstName"
-                  className="text-card-foreground font-medium"
-                >
-                  Tên <span className="text-destructive">*</span>
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <input
-                    id="firstName"
-                    type="text"
-                    placeholder="Nhập tên"
-                    value={formData.firstName}
-                    onChange={(e) =>
-                      handleInputChange("firstName", e.target.value)
-                    }
-                    className={`w-full pl-10 pr-3 py-2 border rounded-lg bg-input border-border text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
-                      errors.firstName
-                        ? "border-destructive focus:ring-destructive"
-                        : ""
-                    }`}
-                  />
+            {/* ✅ Avatar Upload */}
+            <div className="space-y-2">
+              <Label className="text-card-foreground font-medium">
+                Ảnh đại diện (tùy chọn)
+              </Label>
+              <div className="flex items-center gap-4">
+                <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-border">
+                  {avatarPreview ? (
+                    <Image
+                      src={avatarPreview || ""}
+                      alt="Avatar preview"
+                      className="w-full h-full object-cover"
+                      width={80}
+                      height={80}
+                    />
+                  ) : (
+                    <User className="w-8 h-8 text-muted-foreground" />
+                  )}
                 </div>
-                {errors.firstName && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.firstName}
+                <div className="flex-1">
+                  <input
+                    title="avatar"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarChange}
+                    className="hidden"
+                    id="avatar-upload"
+                  />
+                  <Label
+                    htmlFor="avatar-upload"
+                    className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Chọn ảnh
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    PNG, JPG, WebP (tối đa 5MB)
                   </p>
-                )}
+                </div>
               </div>
+              {errors.avatar && (
+                <p className="text-sm text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.avatar}
+                </p>
+              )}
+            </div>
 
-              <div className="space-y-2">
-                <Label
-                  htmlFor="lastName"
-                  className="text-card-foreground font-medium"
-                >
-                  Họ <span className="text-destructive">*</span>
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <input
-                    id="lastName"
-                    type="text"
-                    placeholder="Nhập họ"
-                    value={formData.lastName}
-                    onChange={(e) =>
-                      handleInputChange("lastName", e.target.value)
-                    }
-                    className={`w-full pl-10 pr-3 py-2 border rounded-lg bg-input border-border text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
-                      errors.lastName
-                        ? "border-destructive focus:ring-destructive"
-                        : ""
-                    }`}
-                  />
-                </div>
-                {errors.lastName && (
-                  <p className="text-sm text-destructive flex items-center gap-1">
-                    <AlertCircle className="h-3 w-3" />
-                    {errors.lastName}
-                  </p>
-                )}
+            {/* ✅ Handle field */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="handle"
+                className="text-card-foreground font-medium"
+              >
+                Handle (Tên người dùng){" "}
+                <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <AtSign className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <input
+                  id="handle"
+                  type="text"
+                  placeholder="vd: john_doe123"
+                  value={formData.handle}
+                  onChange={(e) => handleInputChange("handle", e.target.value)}
+                  className={`w-full pl-10 pr-3 py-2 border rounded-lg bg-input border-border text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                    errors.handle
+                      ? "border-destructive focus:ring-destructive"
+                      : ""
+                  }`}
+                />
               </div>
+              <p className="text-xs text-muted-foreground">
+                Handle dùng để người khác có thể tìm và kết bạn với bạn. Chỉ
+                chứa chữ cái, số và dấu gạch dưới.
+              </p>
+              {errors.handle && (
+                <p className="text-sm text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.handle}
+                </p>
+              )}
+            </div>
+
+            {/* ✅ Display Name (thay thế firstName + lastName) */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="displayName"
+                className="text-card-foreground font-medium"
+              >
+                Tên hiển thị <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <input
+                  id="displayName"
+                  type="text"
+                  placeholder="Nhập tên hiển thị của bạn"
+                  value={formData.displayName}
+                  onChange={(e) =>
+                    handleInputChange("displayName", e.target.value)
+                  }
+                  className={`w-full pl-10 pr-3 py-2 border rounded-lg bg-input border-border text-card-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors ${
+                    errors.displayName
+                      ? "border-destructive focus:ring-destructive"
+                      : ""
+                  }`}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tên này sẽ hiển thị cho những người khác trong cuộc trò chuyện.
+              </p>
+              {errors.displayName && (
+                <p className="text-sm text-destructive flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  {errors.displayName}
+                </p>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -355,9 +504,9 @@ const RegisterForm = () => {
                 <div className="relative">
                   <Calendar className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                   <input
+                    title="dateOfBirth"
                     id="dateOfBirth"
                     type="date"
-                    title="DateOfBirth"
                     value={formData.dateOfBirth}
                     onChange={(e) =>
                       handleInputChange("dateOfBirth", e.target.value)
@@ -526,8 +675,8 @@ const RegisterForm = () => {
           <div className="space-y-4">
             <div className="flex items-start space-x-3">
               <input
+                title="dateOfBirth"
                 id="acceptTerms"
-                title="Rules"
                 type="checkbox"
                 checked={formData.acceptTerms}
                 onChange={(e) =>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import React, { useEffect, useRef, useState } from "react";
 
 const DropMenu = () => {
@@ -40,10 +41,12 @@ const DropMenu = () => {
           type="button"
         >
           <span className="sr-only">Open user menu</span>
-          <img
+          <Image
             className="w-8 h-8 me-2 rounded-full"
             src="/docs/images/people/profile-picture-3.jpg"
             alt="user photo"
+            width={32}
+            height={32}
           />
           Bonnie Green
           <svg
@@ -108,7 +111,7 @@ const DropMenu = () => {
           </ul>
           <div className="py-2">
             <Link
-              href="/login"
+              href="/auth/login"
               className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
               onClick={handleMenuClick}
             >

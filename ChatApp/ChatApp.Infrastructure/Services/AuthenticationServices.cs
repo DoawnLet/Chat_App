@@ -24,8 +24,27 @@ namespace ChatApp.Infrastructure.Services
 
         public async Task<Response> LoginAsync(UserLoginDto dto)
         {
+            //var getUser = await GetUserByEmail(dto.Email);
+            //if (getUser is null) return new Response(false, "Emaill is invalid, Please check email again");
+
+            if (string.IsNullOrWhiteSpace(dto.Email))
+                return new Response(false, "Email không được để trống");
+
             var getUser = await GetUserByEmail(dto.Email);
-            if (getUser is null) return new Response(false, "Emaill is invalid, Please check email again");
+            if (getUser is null)
+            {
+                // Log để debug
+                Console.WriteLine($"Không tìm thấy người dùng với email: {dto.Email}");
+
+                // Kiểm tra xem có email nào gần giống không (để debug)
+                var similarEmails = await context.Users
+                    .Where(u => u.Email != null)
+                    .Select(u => u.Email)
+                    .ToListAsync();
+                Console.WriteLine($"Các email hiện có: {string.Join(", ", similarEmails)}");
+
+                return new Response(false, "Email không tồn tại, vui lòng kiểm tra lại");
+            }
 
             //var verifyPassword = BCrypt.Net.BCrypt.Verify(dto.Password, getUser.PasswordHash);
             var verifyPassword = BCrypt.Net.BCrypt.Verify(dto.Password, getUser.PasswordHash);
@@ -49,7 +68,9 @@ namespace ChatApp.Infrastructure.Services
                 var getUserEmail = await GetUserByEmail(dto.Email);
                 if (getUserEmail is not null)
                 {
-                    return new Response(false, $"You cannot use this email for registration");
+                    var response = new Response(false, $"You cannot use this email for registration");
+                    Console.WriteLine($"Returning email already exists response: {response.Message}");
+                    return response;
                 }
 
                 var result = context.Users.Add(new User()
@@ -57,6 +78,7 @@ namespace ChatApp.Infrastructure.Services
                     Id = Guid.NewGuid(),
                     Handle = dto.Handle,
                     DisplayName = dto.DisplayName,
+                    DateOfBirth = dto.DateOfBirth,
                     Email = dto.Email,
                     Phone = dto.Phone,
                     AvatarUrl = dto.AvatarUrl,
@@ -78,8 +100,13 @@ namespace ChatApp.Infrastructure.Services
 
         public async Task<User> GetUserByEmail(string email)
         {
-            var user = await context.Users.FirstOrDefaultAsync(x => x.Email == email);
-            return user is not null ? user! : null!;
+            if (string.IsNullOrWhiteSpace(email)) return null;
+
+            var normalizedEmail = email.Trim().ToLowerInvariant();
+
+            var user = await context.Users.FirstOrDefaultAsync(x => x.Email != null && x.Email.ToLower() == normalizedEmail);
+
+            return user;
         }
 
         public async Task<User?> GetUserByHandle(string handle)

@@ -23,11 +23,13 @@ namespace ChatApp.Presentation
 
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowNextJs",
-                    policy => policy.WithOrigins("http://localhost:3000") // địa chỉ Next.js
-                                    .AllowAnyHeader()
-                                    .AllowAnyMethod()
-                                    .AllowCredentials());
+                options.AddPolicy("AllowFrontend", builder =>
+                {
+                    builder.WithOrigins("http://localhost:3000")
+                           .AllowAnyMethod()
+                           .AllowAnyHeader()
+                           .AllowCredentials();
+                });
             });
 
             var app = builder.Build();
@@ -35,10 +37,11 @@ namespace ChatApp.Presentation
                 app.UseInfrastructurePolicy();
                 app.UseSwagger();
             }
-
+            app.UseCors("AllowFrontend");
             app.MapHub<ChatHub>("/hubs/chat");
             app.UseSwaggerUI();
 
+            app.UseSharedPolices();
             app.UseHttpsRedirection();
 
             app.UseAuthorization();

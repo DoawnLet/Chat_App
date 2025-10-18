@@ -9,10 +9,10 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace ChatApp.Infrastructure.Data.Migrations
+namespace ChatApp.Infrastructure.Data.Mirgations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20251001082833_First")]
+    [Migration("20251018081107_First")]
     partial class First
     {
         /// <inheritdoc />
@@ -538,6 +538,9 @@ namespace ChatApp.Infrastructure.Data.Migrations
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly>("DateOfBirth")
+                        .HasColumnType("date");
 
                     b.Property<string>("DisplayName")
                         .IsRequired()

@@ -1,7 +1,5 @@
 ﻿using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
-using ChatApp.Application.Exceptions.Responses;
-using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ChatApp.Presentation.Controllers
@@ -11,7 +9,7 @@ namespace ChatApp.Presentation.Controllers
     public class AuthenticationController(IAuthenticationService service) : ControllerBase
     {
         [HttpPost("login")]
-        public async Task<ActionResult> Lgin(UserLoginDto dto)
+        public async Task<ActionResult> Login(UserLoginDto dto)
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
@@ -25,7 +23,8 @@ namespace ChatApp.Presentation.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var register = await service.RegisterAsync(dto);
-            return register.Flag ? Ok(register) : BadRequest(Request);
+            Console.WriteLine($"Controller received response: Flag={register.Flag}, Message={register.Message}");
+            return register.Flag ? Ok(register) : BadRequest(register);
         }
     }
 }

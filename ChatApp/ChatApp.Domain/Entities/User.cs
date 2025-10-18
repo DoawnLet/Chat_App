@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ChatApp.Domain.Entities
+﻿namespace ChatApp.Domain.Entities
 {
     public class User : AuditableEntity
     {
@@ -15,6 +9,8 @@ namespace ChatApp.Domain.Entities
         public string? Email { get; set; }
         public string? Phone { get; set; }
         public string PasswordHash { get; set; } = default!;
+
+        public DateOnly DateOfBirth { get; set; }
         public DateTimeOffset? LastSeenAt { get; set; }
         public bool IsActive { get; set; } = true;
 

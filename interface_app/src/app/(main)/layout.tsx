@@ -17,6 +17,7 @@ const MainLayout = ({ children }: Readonly<{ children: React.ReactNode }>) => {
         {/* Main content area */}
         <main className="flex-1 min-h-[calc(100vh-8rem)]">
           <div className="p-4 md:p-6 lg:p-8">{children}</div>
+          {/* {children} */}
         </main>
       </div>
 
