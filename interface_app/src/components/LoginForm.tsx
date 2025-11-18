@@ -88,7 +88,7 @@ export function LoginForm() {
         console.log("Login successful:", result.data);
 
         // Redirect to dashboard or home page
-        window.location.href = "/dashboard";
+        window.location.href = "/";
       } else {
         setErrors({ general: result.message });
       }

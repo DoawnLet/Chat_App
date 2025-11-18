@@ -43,7 +43,7 @@ const DropMenu = () => {
           <span className="sr-only">Open user menu</span>
           <Image
             className="w-8 h-8 me-2 rounded-full"
-            src="/docs/images/people/profile-picture-3.jpg"
+            src="https://ui-avatars.com/api/?name=Bonnie+Green&background=0d8abc&color=fff&size=32"
             alt="user photo"
             width={32}
             height={32}
