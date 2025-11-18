@@ -6,6 +6,7 @@ using ChatApp.Domain.Enum;
 using ChatApp.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -14,7 +15,7 @@ using System.Text;
 
 namespace ChatApp.Infrastructure.Services
 {
-    public class AuthenticationServices(AppDbContext context, IConfiguration config) : IAuthenticationService
+    public class AuthenticationServices(AppDbContext context, IConfiguration config, ILogger<AuthenticationServices> logger) : IAuthenticationService
     {
         public async Task<UserDto> GetUser(int userId)
         {
@@ -41,7 +42,7 @@ namespace ChatApp.Infrastructure.Services
                     .Where(u => u.Email != null)
                     .Select(u => u.Email)
                     .ToListAsync();
-                Console.WriteLine($"Các email hiện có: {string.Join(", ", similarEmails)}");
+                logger.LogInformation($"Các email hiện có: {string.Join(", ", similarEmails)}");
 
                 return new Response(false, "Email không tồn tại, vui lòng kiểm tra lại");
             }
@@ -52,11 +53,14 @@ namespace ChatApp.Infrastructure.Services
                 return new Response(false, "Password is incorrect");
 
             string token = GeneratedToken(getUser);
+
             return new Response(true, token);
         }
 
         public async Task<Response> RegisterAsync(UserRegisterDto dto)
         {
+            using var transaction = await context.Database.BeginTransactionAsync();
+
             try
             {
                 var getUserHandle = await GetUserByHandle(dto.Handle);
@@ -92,6 +96,7 @@ namespace ChatApp.Infrastructure.Services
             }
             catch (Exception ex)
             {
+                await transaction.RollbackAsync();
                 // Log lỗi chi tiết
                 Console.WriteLine($"Registration error: {ex.Message}");
                 return new Response(false, $"Registration failed: {ex.Message}");

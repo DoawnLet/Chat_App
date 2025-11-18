@@ -3,6 +3,7 @@ using ChatApp.Application.DependencyInjection;
 using ChatApp.Infrastructure.DependencyInjection;
 using ChatApp.Presentation.Realtime;
 using ChatApp.Presentation.Realtime.ChatHubs;
+using Microsoft.AspNetCore.CookiePolicy;
 
 namespace ChatApp.Presentation
 {
@@ -32,20 +33,31 @@ namespace ChatApp.Presentation
                 });
             });
 
-            var app = builder.Build();
+            // Add cookie policy configuration
+            builder.Services.Configure<CookiePolicyOptions>(options =>
             {
-                app.UseInfrastructurePolicy();
-                app.UseSwagger();
-            }
+                options.MinimumSameSitePolicy = SameSiteMode.None;
+                options.HttpOnly = HttpOnlyPolicy.Always;
+                options.Secure = CookieSecurePolicy.Always;
+            });
+
+            var app = builder.Build();
+
+            app.UseInfrastructurePolicy();
+            app.UseSwagger();
             app.UseCors("AllowFrontend");
-            app.MapHub<ChatHub>("/hubs/chat");
+            // Make sure to use the policy
+            app.UseCookiePolicy();
+
             app.UseSwaggerUI();
 
             app.UseSharedPolices();
             app.UseHttpsRedirection();
 
+            app.UseAuthentication();
             app.UseAuthorization();
 
+            app.MapHub<ChatHub>("/hubs/chat");
             app.MapControllers();
 
             app.Run();

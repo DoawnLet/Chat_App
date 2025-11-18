@@ -1,6 +1,7 @@
 ﻿using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using Microsoft.AspNetCore.Mvc;
+using Polly;
 
 namespace ChatApp.Presentation.Controllers
 {
@@ -14,6 +15,17 @@ namespace ChatApp.Presentation.Controllers
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
             var login = await service.LoginAsync(dto);
+            var cookieOptions = new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = true, // production: true. Dev: thí nghiệm với SameAsRequest nếu cần
+                SameSite = SameSiteMode.None, // bắt buộc để cookies cross-site
+                Path = "/",
+                Expires = DateTimeOffset.UtcNow.AddDays(7)
+            };
+
+            Response.Cookies.Append("token", login.Message, cookieOptions);
+
             return login.Flag ? Ok(login) : BadRequest(Request);
         }
 

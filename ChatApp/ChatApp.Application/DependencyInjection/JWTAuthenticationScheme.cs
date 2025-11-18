@@ -34,6 +34,39 @@ namespace ChatApp.Application.DependencyInjection
                         ValidAudience = audience,
                         IssuerSigningKey = new SymmetricSecurityKey(key)
                     };
+                    // ✅ Extract token từ cookie và hỗ trợ SignalR
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            // Ưu tiên: Check SignalR query string trước
+                            var accessToken = context.Request.Query["access_token"];
+                            var path = context.HttpContext.Request.Path;
+
+                            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                            {
+                                // SignalR connection - token từ query string
+                                context.Token = accessToken;
+                            }
+                            else
+                            {
+                                // Regular HTTP request - token từ cookie
+                                context.Token = context.Request.Cookies["token"];
+                            }
+
+                            return Task.CompletedTask;
+                        },
+
+                        // ✅ Optional: Log authentication failures
+                        OnAuthenticationFailed = context =>
+                        {
+                            if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
+                            {
+                                context.Response.Headers.Add("Token-Expired", "true");
+                            }
+                            return Task.CompletedTask;
+                        }
+                    };
                 });
             return service;
         }
