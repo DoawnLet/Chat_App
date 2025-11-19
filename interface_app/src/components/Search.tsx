@@ -18,11 +18,18 @@ interface SearchState {
   pageSize: number;
 }
 
-const TaskSearch: React.FC = () => {
+interface TaskSearchProps {
+  initialQuery?: string;
+}
+
+const TaskSearch: React.FC<TaskSearchProps> = ({ initialQuery = "" }) => {
   const router = useRouter();
-  const [keywords, setKeywords] = useState<string>("");
-  const debouncedKeyword = useDebounce(keywords, 500);
+  const [keywords, setKeywords] = useState<string>(initialQuery);
+  const [showSuggestions, setShowSuggestions] = useState<boolean>(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const debouncedKeyword = useDebounce(keywords, 300); // Faster debounce for better UX
   const inputRef = useRef<HTMLInputElement>(null);
+  const suggestionsRef = useRef<HTMLDivElement>(null);
 
   const [searchState, setSearchState] = useState<SearchState>({
     data: [],
@@ -34,6 +41,28 @@ const TaskSearch: React.FC = () => {
   });
 
   const abortRef = useRef<AbortController | null>(null);
+
+  // Load recent searches from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem("recentSearches");
+    if (saved) {
+      try {
+        setRecentSearches(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse recent searches:", e);
+      }
+    }
+  }, []);
+
+  // Set initial query on mount
+  useEffect(() => {
+    if (initialQuery && !initialQuerySetRef.current) {
+      setKeywords(initialQuery);
+      initialQuerySetRef.current = true;
+    }
+  }, [initialQuery]);
+
+  const initialQuerySetRef = useRef(false);
 
   // Reset page when search term changes
   useEffect(() => {
@@ -167,12 +196,48 @@ const TaskSearch: React.FC = () => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     if (keywords.trim()) {
-      router.push(`/search?q=${encodeURIComponent(keywords.trim())}`);
+      // Add to recent searches
+      const trimmedKeyword = keywords.trim();
+      setRecentSearches((prev) => {
+        const filtered = prev.filter((s) => s !== trimmedKeyword);
+        const updated = [trimmedKeyword, ...filtered].slice(0, 5); // Keep only 5 recent
+        localStorage.setItem("recentSearches", JSON.stringify(updated));
+        return updated;
+      });
+
+      router.push(`/search?q=${encodeURIComponent(trimmedKeyword)}`);
+      setShowSuggestions(false);
     }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     setKeywords(e.target.value);
+    setShowSuggestions(true);
+  };
+
+  const handleInputFocus = (): void => {
+    if (keywords.trim() || recentSearches.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
+  const handleSuggestionClick = (suggestion: string): void => {
+    setKeywords(suggestion);
+    setShowSuggestions(false);
+    inputRef.current?.focus();
+  };
+
+  const handleClearRecentSearch = (searchToRemove: string): void => {
+    setRecentSearches((prev) => {
+      const filtered = prev.filter((s) => s !== searchToRemove);
+      localStorage.setItem("recentSearches", JSON.stringify(filtered));
+      return filtered;
+    });
+  };
+
+  const handleClearAllRecent = (): void => {
+    setRecentSearches([]);
+    localStorage.removeItem("recentSearches");
   };
 
   const handlePageChange = (newPage: number): void => {
@@ -189,11 +254,29 @@ const TaskSearch: React.FC = () => {
       pageNumber: 1,
       pageSize: 10,
     });
+    setShowSuggestions(false);
     inputRef.current?.focus();
   };
 
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node) &&
+        inputRef.current &&
+        !inputRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <div className="w-full py-6">
+    <div className="w-full py-6 relative">
       {/* Search Form with Enhanced Style */}
       <form className="max-w-md m-10" onSubmit={handleSubmit}>
         <label
@@ -235,6 +318,7 @@ const TaskSearch: React.FC = () => {
             id="search"
             value={keywords}
             onChange={handleInputChange}
+            onFocus={handleInputFocus}
             className="block w-full p-3 ps-9 pe-24 text-sm text-gray-900 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
             placeholder="Tìm kiếm người dùng theo tên hoặc handle..."
             autoComplete="off"
@@ -299,6 +383,86 @@ const TaskSearch: React.FC = () => {
             )}
           </button>
         </div>
+
+        {/* Search Suggestions Dropdown */}
+        {showSuggestions && (
+          <div
+            ref={suggestionsRef}
+            className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
+          >
+            {/* Recent Searches */}
+            {recentSearches.length > 0 && !keywords.trim() && (
+              <div className="p-2">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Tìm kiếm gần đây
+                  </span>
+                  <button
+                    onClick={handleClearAllRecent}
+                    className="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                  >
+                    Xóa tất cả
+                  </button>
+                </div>
+                {recentSearches.map((search, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer group"
+                    onClick={() => handleSuggestionClick(search)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className="w-4 h-4 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span className="text-sm">{search}</span>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleClearRecentSearch(search);
+                      }}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+                      aria-label={`Xóa tìm kiếm: ${search}`}
+                    >
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Search Tips */}
+            {keywords.trim() && (
+              <div className="p-2 border-t border-gray-100 dark:border-gray-700">
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  💡 Mẹo: Nhập tên hoặc handle để tìm kiếm chính xác hơn
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Keyboard Shortcut Hint */}
         {keywords && (
