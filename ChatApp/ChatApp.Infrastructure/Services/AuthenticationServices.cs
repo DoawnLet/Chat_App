@@ -1,4 +1,8 @@
-﻿using ChatApp.Application.Abstractions.IServices;
+﻿using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using ChatApp.Application.Exceptions.Responses;
 using ChatApp.Domain.Entities;
@@ -8,14 +12,14 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
 
 namespace ChatApp.Infrastructure.Services
 {
-    public class AuthenticationServices(AppDbContext context, IConfiguration config, ILogger<AuthenticationServices> logger) : IAuthenticationService
+    public class AuthenticationServices(
+        AppDbContext context,
+        IConfiguration config,
+        ILogger<AuthenticationServices> logger
+    ) : IAuthenticationService
     {
         public async Task<UserDto> GetUser(int userId)
         {
@@ -38,8 +42,8 @@ namespace ChatApp.Infrastructure.Services
                 Console.WriteLine($"Không tìm thấy người dùng với email: {dto.Email}");
 
                 // Kiểm tra xem có email nào gần giống không (để debug)
-                var similarEmails = await context.Users
-                    .Where(u => u.Email != null)
+                var similarEmails = await context
+                    .Users.Where(u => u.Email != null)
                     .Select(u => u.Email)
                     .ToListAsync();
                 logger.LogInformation($"Các email hiện có: {string.Join(", ", similarEmails)}");
@@ -59,7 +63,7 @@ namespace ChatApp.Infrastructure.Services
 
         public async Task<Response> RegisterAsync(UserRegisterDto dto)
         {
-            using var transaction = await context.Database.BeginTransactionAsync();
+            //using var transaction = await context.Database.BeginTransactionAsync();
 
             try
             {
@@ -72,31 +76,40 @@ namespace ChatApp.Infrastructure.Services
                 var getUserEmail = await GetUserByEmail(dto.Email);
                 if (getUserEmail is not null)
                 {
-                    var response = new Response(false, $"You cannot use this email for registration");
-                    Console.WriteLine($"Returning email already exists response: {response.Message}");
+                    var response = new Response(
+                        false,
+                        $"You cannot use this email for registration"
+                    );
+                    Console.WriteLine(
+                        $"Returning email already exists response: {response.Message}"
+                    );
                     return response;
                 }
 
-                var result = context.Users.Add(new User()
-                {
-                    Id = Guid.NewGuid(),
-                    Handle = dto.Handle,
-                    DisplayName = dto.DisplayName,
-                    DateOfBirth = dto.DateOfBirth,
-                    Email = dto.Email,
-                    Phone = dto.Phone,
-                    AvatarUrl = dto.AvatarUrl,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
-                    IsActive = true,
-                    LastSeenAt = DateTimeOffset.UtcNow
-                });
+                var result = context.Users.Add(
+                    new User()
+                    {
+                        Id = Guid.NewGuid(),
+                        Handle = dto.Handle,
+                        DisplayName = dto.DisplayName,
+                        DateOfBirth = dto.DateOfBirth,
+                        Email = dto.Email,
+                        Phone = dto.Phone,
+                        AvatarUrl = dto.AvatarUrl,
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password),
+                        IsActive = true,
+                        LastSeenAt = DateTimeOffset.UtcNow,
+                    }
+                );
 
                 await context.SaveChangesAsync();
-                return result.Entity.Id != Guid.Empty ? new Response(true, "User register successfully") : new Response(false, "User Register Faill");
+                return result.Entity.Id != Guid.Empty
+                    ? new Response(true, "User register successfully")
+                    : new Response(false, "User Register Faill");
             }
             catch (Exception ex)
             {
-                await transaction.RollbackAsync();
+                //await transaction.RollbackAsync();
                 // Log lỗi chi tiết
                 Console.WriteLine($"Registration error: {ex.Message}");
                 return new Response(false, $"Registration failed: {ex.Message}");
@@ -105,11 +118,14 @@ namespace ChatApp.Infrastructure.Services
 
         public async Task<User> GetUserByEmail(string email)
         {
-            if (string.IsNullOrWhiteSpace(email)) return null;
+            if (string.IsNullOrWhiteSpace(email))
+                return null;
 
             var normalizedEmail = email.Trim().ToLowerInvariant();
 
-            var user = await context.Users.FirstOrDefaultAsync(x => x.Email != null && x.Email.ToLower() == normalizedEmail);
+            var user = await context.Users.FirstOrDefaultAsync(x =>
+                x.Email != null && x.Email.ToLower() == normalizedEmail
+            );
 
             return user;
         }
@@ -133,21 +149,21 @@ namespace ChatApp.Infrastructure.Services
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
 
             var claims = new List<Claim>
-                {
-                    new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                    new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
-                    new("uid", user.Id.ToString()),
-                    new("handle", user.Handle),
-                    new("deviceId", devicedId.ToString())
-                };
+            {
+                new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
+                new("uid", user.Id.ToString()),
+                new("handle", user.Handle),
+                new("deviceId", devicedId.ToString()),
+            };
 
             var token = new JwtSecurityToken(
-               issuer: config["Authentication:Issuer"],
-               audience: config["Authentication:Audience"],
-               claims: claims,
-               expires: expires.DateTime,
-               signingCredentials: credentials
-               );
+                issuer: config["Authentication:Issuer"],
+                audience: config["Authentication:Audience"],
+                claims: claims,
+                expires: expires.DateTime,
+                signingCredentials: credentials
+            );
 
             //Tạo và lưu refresh token
             SaveRefreshToken(user.Id, devicedId, expires);
@@ -168,7 +184,7 @@ namespace ChatApp.Infrastructure.Services
                 DeviceId = deviceId,
                 TokenHash = tokenHash,
                 ExpiresAt = expiresAt,
-                RevokedAt = DateTimeOffset.UtcNow
+                RevokedAt = DateTimeOffset.UtcNow,
             };
 
             // Tạo mới Device nếu cần
@@ -177,7 +193,7 @@ namespace ChatApp.Infrastructure.Services
                 Id = deviceId,
                 UserId = userId,
                 Platform = Platform.Web, // Hoặc xác định từ context
-                LastActiveAt = DateTimeOffset.UtcNow
+                LastActiveAt = DateTimeOffset.UtcNow,
             };
 
             context.Devices.Add(device);

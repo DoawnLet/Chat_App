@@ -1,15 +1,14 @@
-﻿using ChatApp.Application.Abstractions.IServices;
+﻿using System.Security.Claims;
+using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace ChatApp.Presentation.Controllers
 {
-    //[Authorize]
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize] // Thêm attribute này để yêu cầu authentication
     public class ContactController(IContactService service) : ControllerBase
     {
         private Guid GetCurrentUser()
@@ -39,7 +38,9 @@ namespace ChatApp.Presentation.Controllers
         /// Phản hồi lời mời kết bạn (accept/reject)
         /// </summary>
         [HttpPatch("requests/respond")]
-        public async Task<IActionResult> ResponseToFriendRequest([FromBody] ResponseFriendRequestDto reponse)
+        public async Task<IActionResult> ResponseToFriendRequest(
+            [FromBody] ResponseFriendRequestDto reponse
+        )
         {
             var user = GetCurrentUser();
             var result = await service.ResponseToFriendRequestAsync(user, reponse);
@@ -55,7 +56,10 @@ namespace ChatApp.Presentation.Controllers
         /// Lấy danh sách bạn bè
         ///</summary>
         [HttpGet]
-        public async Task<IActionResult> GetListFriendRequest([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetListFriendRequest(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20
+        )
         {
             var user = GetCurrentUser();
             var result = await service.GetFriendsAsync(user, page, pageSize);
@@ -67,7 +71,10 @@ namespace ChatApp.Presentation.Controllers
         ///Lấy danh sách lời mời kết bạn đã gửi
         ///</summary>
         [HttpGet("requests/sent")]
-        public async Task<IActionResult> GetSendFriendRequest([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetSendFriendRequest(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20
+        )
         {
             var user = GetCurrentUser();
             var result = await service.GetSentFriendRequestsAsync(user, page, pageSize);
@@ -78,7 +85,10 @@ namespace ChatApp.Presentation.Controllers
         ///Lấy danh sách lời mời kết bạn đã gửi
         ///</summary>
         [HttpGet("request/pending")]
-        public async Task<IActionResult> GetPendingFriendRequest([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetPendingFriendRequest(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20
+        )
         {
             var user = GetCurrentUser();
             var result = await service.GetPendingFriendRequestsAsync(user, page, pageSize);
@@ -90,7 +100,10 @@ namespace ChatApp.Presentation.Controllers
         /// Danh sách block friend
         ///</summary>
         [HttpGet("blocked")]
-        public async Task<IActionResult> GetBlockFriendReponse([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetBlockFriendReponse(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20
+        )
         {
             var user = GetCurrentUser();
             var result = await service.GetBlockedUsersAsync(user, page, pageSize);

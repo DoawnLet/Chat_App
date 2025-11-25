@@ -24,13 +24,17 @@ namespace ChatApp.Presentation
 
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowFrontend", builder =>
-                {
-                    builder.WithOrigins("http://localhost:3000")
-                           .AllowAnyMethod()
-                           .AllowAnyHeader()
-                           .AllowCredentials();
-                });
+                options.AddPolicy(
+                    "AllowFrontend",
+                    builder =>
+                    {
+                        builder
+                            .WithOrigins("http://localhost:3000")
+                            .AllowAnyMethod()
+                            .AllowAnyHeader()
+                            .AllowCredentials();
+                    }
+                );
             });
 
             // Add cookie policy configuration
@@ -52,7 +56,7 @@ namespace ChatApp.Presentation
             app.UseSwaggerUI();
 
             app.UseSharedPolices();
-            app.UseHttpsRedirection();
+            // app.UseHttpsRedirection(); // Tạm thời disable cho development với HTTP frontend
 
             app.UseAuthentication();
             app.UseAuthorization();

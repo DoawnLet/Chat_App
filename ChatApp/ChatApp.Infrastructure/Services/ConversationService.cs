@@ -10,38 +10,56 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ChatApp.Infrastructure.Services
 {
-    public class ConversationService(AppDbContext context, IMapper mapper, Utils utils) : IConversationService
+    public class ConversationService(AppDbContext context, IMapper mapper, Utils utils)
+        : IConversationService
     {
-        public async Task<GenericResponse<ConversationDto>> CreateDirectConversationAsync(Guid userId, CreateDirectConversationDto request)
+        public async Task<GenericResponse<ConversationDto>> CreateDirectConversationAsync(
+            Guid userId,
+            CreateDirectConversationDto request
+        )
         {
             // Tìm kiếm user
-            var targetUser = await context.Users.FirstOrDefaultAsync(u => u.Handle == request.TargetHandle && u.IsActive);
+            var targetUser = await context.Users.FirstOrDefaultAsync(u =>
+                u.Handle == request.TargetHandle && u.IsActive
+            );
 
-            if (targetUser is null) return new GenericResponse<ConversationDto>(false, "Not found user");
+            if (targetUser is null)
+                return new GenericResponse<ConversationDto>(false, "Not found user");
 
-            if (targetUser.Id == userId) return new GenericResponse<ConversationDto>(false, "Cannot create conversation yourself");
+            if (targetUser.Id == userId)
+                return new GenericResponse<ConversationDto>(
+                    false,
+                    "Cannot create conversation yourself"
+                );
 
             //kiểm tra xem có phải là bạn bè không?
-            var friendShip = await context.Contacts
-                .AnyAsync(c => (c.OwnerId == userId && c.TargetId == targetUser.Id) ||
-                                (c.OwnerId == targetUser.Id && c.TargetId == userId) &&
-                                c.Status == ContactStatus.Accepted);
+            var friendShip = await context.Contacts.AnyAsync(c =>
+                (c.OwnerId == userId && c.TargetId == targetUser.Id)
+                || (c.OwnerId == targetUser.Id && c.TargetId == userId)
+                    && c.Status == ContactStatus.Accepted
+            );
 
-            if (!friendShip) return new GenericResponse<ConversationDto>(false, "Can only create conversation with friends");
+            if (!friendShip)
+                return new GenericResponse<ConversationDto>(
+                    false,
+                    "Can only create conversation with friends"
+                );
 
             //Tạo DirectKey tránh duplication
             var directkey = utils.GenerateDirectkey(userId, targetUser.Id);
 
             //Kiểm tra conversation đã tồn tại hay chưa
-            var existingConversation = await context.Conversations
-                .Include(c => c.Members)
+            var existingConversation = await context
+                .Conversations.Include(c => c.Members)
                 .ThenInclude(m => m.User)
                 .FirstOrDefaultAsync(c => c.DirectKey == directkey);
 
             if (existingConversation is not null)
             {
                 //Nếu user chưa là member, thêm lại
-                var userMembership = existingConversation.Members.FirstOrDefault(m => m.UserId == userId);
+                var userMembership = existingConversation.Members.FirstOrDefault(m =>
+                    m.UserId == userId
+                );
                 if (userMembership is null)
                 {
                     var newMember = new ConversationMember
@@ -49,7 +67,7 @@ namespace ChatApp.Infrastructure.Services
                         ConversationId = existingConversation.Id,
                         UserId = userId,
                         Role = MemberRole.Member,
-                        JoinedAt = DateTimeOffset.UtcNow
+                        JoinedAt = DateTimeOffset.UtcNow,
                     };
 
                     context.ConversationMembers.Add(newMember);
@@ -58,7 +76,11 @@ namespace ChatApp.Infrastructure.Services
                     existingConversation = await LoadConversationMember(existingConversation.Id);
                 }
 
-                return new GenericResponse<ConversationDto>(true, "Add new conversation", mapper.Map<ConversationDto>(existingConversation));
+                return new GenericResponse<ConversationDto>(
+                    true,
+                    "Add new conversation",
+                    mapper.Map<ConversationDto>(existingConversation)
+                );
             }
 
             //Tạo conversation mới
@@ -72,21 +94,22 @@ namespace ChatApp.Infrastructure.Services
 
             context.Conversations.Add(newConversation);
 
-            var members = new[] {
+            var members = new[]
+            {
                 new ConversationMember
                 {
                     UserId = userId,
                     ConversationId = newConversation.Id,
                     Role = MemberRole.Member,
-                    JoinedAt = DateTimeOffset.UtcNow
+                    JoinedAt = DateTimeOffset.UtcNow,
                 },
                 new ConversationMember
                 {
                     UserId = targetUser.Id,
                     ConversationId = newConversation.Id,
                     Role = MemberRole.Member,
-                    JoinedAt = DateTimeOffset.UtcNow
-                }
+                    JoinedAt = DateTimeOffset.UtcNow,
+                },
             };
 
             context.ConversationMembers.AddRange(members);
@@ -94,17 +117,25 @@ namespace ChatApp.Infrastructure.Services
             //load thông tin đầy đủ
             var loading = await LoadConversationMember(newConversation.Id);
 
-            return new GenericResponse<ConversationDto>(true, "New Chat sheet create succesfully", mapper.Map<ConversationDto>(loading));
+            return new GenericResponse<ConversationDto>(
+                true,
+                "New Chat sheet create succesfully",
+                mapper.Map<ConversationDto>(loading)
+            );
         }
 
-        public async Task<GenericResponse<ConversationDto>> CreateGroupConversationAsync(Guid userId, CreateGroupConversationDto request)
+        public async Task<GenericResponse<ConversationDto>> CreateGroupConversationAsync(
+            Guid userId,
+            CreateGroupConversationDto request
+        )
         {
             //Kiểm tra : tồn tại là friend chưa
-            var existReqFriend = await context.Users
-                .Where(u => request.MemberHandle.Contains(u.Handle) && u.IsActive)
+            var existReqFriend = await context
+                .Users.Where(u => request.MemberHandle.Contains(u.Handle) && u.IsActive)
                 .ToListAsync();
 
-            if (existReqFriend is null) return new GenericResponse<ConversationDto>(false, "User not found");
+            if (existReqFriend is null)
+                return new GenericResponse<ConversationDto>(false, "User not found");
 
             //Tạo nhóm
             var conversation = new Conversation
@@ -113,7 +144,7 @@ namespace ChatApp.Infrastructure.Services
                 Type = ConversationType.Group,
                 Title = request.Title,
                 AvatarUrl = request.AvatarUrl,
-                CreatedBy = userId
+                CreatedBy = userId,
             };
 
             context.Conversations.Add(conversation);
@@ -124,7 +155,7 @@ namespace ChatApp.Infrastructure.Services
                 ConversationId = conversation.Id,
                 UserId = userId,
                 Role = MemberRole.Owner,
-                JoinedAt = DateTimeOffset.Now
+                JoinedAt = DateTimeOffset.Now,
             };
 
             context.ConversationMembers.Add(creatorMember);
@@ -135,7 +166,7 @@ namespace ChatApp.Infrastructure.Services
                 ConversationId = conversation.Id,
                 UserId = userId,
                 Role = MemberRole.Member,
-                JoinedAt = DateTimeOffset.Now
+                JoinedAt = DateTimeOffset.Now,
             });
 
             context.ConversationMembers.AddRange(members);
@@ -148,12 +179,20 @@ namespace ChatApp.Infrastructure.Services
         }
 
         //Manage group
-        public async Task<GenericResponse<ConversationDto>> UpdateGroupConversationAsync(Guid userid, Guid conversationid, UpdateConversationDto request)
+        public async Task<GenericResponse<ConversationDto>> UpdateGroupConversationAsync(
+            Guid userid,
+            Guid conversationid,
+            UpdateConversationDto request
+        )
         {
-            var conversation = await context.Conversations.Include(c => c.Members)
-                .FirstOrDefaultAsync(c => c.Id == conversationid && c.Type == ConversationType.Group);
+            var conversation = await context
+                .Conversations.Include(c => c.Members)
+                .FirstOrDefaultAsync(c =>
+                    c.Id == conversationid && c.Type == ConversationType.Group
+                );
 
-            if (conversation is null) return new GenericResponse<ConversationDto>(false, "Group conversation not found");
+            if (conversation is null)
+                return new GenericResponse<ConversationDto>(false, "Group conversation not found");
 
             //chỉ owner hoặc admin được thực hiện
             var userMemberShip = conversation.Members.FirstOrDefault(m => m.UserId == userid);
@@ -173,18 +212,25 @@ namespace ChatApp.Infrastructure.Services
 
             var result = await LoadConversationMember(conversationid);
 
-            return new GenericResponse<ConversationDto>(true, "Update Information Group successfull", mapper.Map<ConversationDto>(result));
+            return new GenericResponse<ConversationDto>(
+                true,
+                "Update Information Group successfull",
+                mapper.Map<ConversationDto>(result)
+            );
         }
 
         public async Task<Response> LeaveGroupConversationAsync(Guid userId, Guid conversationId)
         {
-            var conversation = await context.Conversations.Include(c => c.Members)
+            var conversation = await context
+                .Conversations.Include(c => c.Members)
                 .FirstOrDefaultAsync(c => c.Id == conversationId);
 
-            if (conversation is null) return new Response(false, "Conversation not found");
+            if (conversation is null)
+                return new Response(false, "Conversation not found");
 
             var userMembership = conversation.Members.FirstOrDefault(m => m.UserId == userId);
-            if (userMembership is null) return new Response(false, "You are not a member of the conversation");
+            if (userMembership is null)
+                return new Response(false, "You are not a member of the conversation");
 
             //Không thể rời khỏi
             if (conversation.Type == ConversationType.Direct)
@@ -197,7 +243,9 @@ namespace ChatApp.Infrastructure.Services
 
                 if (otherMember.Any())
                 {
-                    var nextOwner = otherMember.FirstOrDefault(m => m.Role == MemberRole.Admin) ?? otherMember.First();
+                    var nextOwner =
+                        otherMember.FirstOrDefault(m => m.Role == MemberRole.Admin)
+                        ?? otherMember.First();
 
                     nextOwner.UserId = userId;
                 }
@@ -211,18 +259,24 @@ namespace ChatApp.Infrastructure.Services
 
         public async Task<Response> DeleteGroupConversationAsync(Guid userId, Guid conversationId)
         {
-            var conversation = await context.Conversations.Include(c => c.Members)
+            var conversation = await context
+                .Conversations.Include(c => c.Members)
                 .FirstOrDefaultAsync(c => c.Id == conversationId);
 
-            if (conversation is null) return new Response(false, "Conversation not found");
+            if (conversation is null)
+                return new Response(false, "Conversation not found");
 
             if (conversation.Type is not ConversationType.Group)
                 return new Response(false, "Remove is not available");
 
             var userMembership = conversation.Members.FirstOrDefault(m => m.UserId == userId);
-            if (userMembership is null ||
-                (userMembership.Role != MemberRole.Owner &&
-                 userMembership.Role != MemberRole.Admin))
+            if (
+                userMembership is null
+                || (
+                    userMembership.Role != MemberRole.Owner
+                    && userMembership.Role != MemberRole.Admin
+                )
+            )
                 return new Response(false, "You do not a premiss remove group chat");
 
             using var transaction = await context.Database.BeginTransactionAsync();
@@ -241,9 +295,14 @@ namespace ChatApp.Infrastructure.Services
         }
 
         //Member manage
-        public async Task<Response> AddMembersAsync(Guid userId, Guid conversationId, AddMembersDto request)
+        public async Task<Response> AddMembersAsync(
+            Guid userId,
+            Guid conversationId,
+            AddMembersDto request
+        )
         {
-            var conversation = await context.Conversations.Include(c => c.Members)
+            var conversation = await context
+                .Conversations.Include(c => c.Members)
                 .FirstOrDefaultAsync(c => c.Id == conversationId);
             if (conversation is null)
                 return new Response(false, "Not found conversation");
@@ -253,7 +312,8 @@ namespace ChatApp.Infrastructure.Services
                 return new Response(false, "Insufficient permissions");
 
             //Tìm user cần thêm
-            var user = await context.Users.Where(u => request.MemberHandles.Contains(u.Handle) && u.IsActive)
+            var user = await context
+                .Users.Where(u => request.MemberHandles.Contains(u.Handle) && u.IsActive)
                 .Where(u => !conversation.Members.Any(m => m.UserId == u.Id))
                 .ToListAsync();
 
@@ -263,12 +323,13 @@ namespace ChatApp.Infrastructure.Services
             }
 
             var newMembers = user.Select(user => new ConversationMember
-            {
-                ConversationId = conversationId,
-                UserId = user.Id,
-                Role = MemberRole.Member,
-                JoinedAt = DateTimeOffset.UtcNow
-            }).ToList();
+                {
+                    ConversationId = conversationId,
+                    UserId = user.Id,
+                    Role = MemberRole.Member,
+                    JoinedAt = DateTimeOffset.UtcNow,
+                })
+                .ToList();
 
             context.ConversationMembers.AddRange(newMembers);
             await context.SaveChangesAsync();
@@ -276,16 +337,26 @@ namespace ChatApp.Infrastructure.Services
             return new Response(true, "Add new user to group successfully!");
         }
 
-        public async Task<Response> RemoveMemberAsync(Guid userId, Guid conversationId, string memberHandle)
+        public async Task<Response> RemoveMemberAsync(
+            Guid userId,
+            Guid conversationId,
+            string memberHandle
+        )
         {
-            var conversation = await context.Conversations.Include(m => m.Members)
+            var conversation = await context
+                .Conversations.Include(m => m.Members)
                 .ThenInclude(m => m.User)
-                .FirstOrDefaultAsync(c => c.Id == conversationId && c.Type == ConversationType.Group);
+                .FirstOrDefaultAsync(c =>
+                    c.Id == conversationId && c.Type == ConversationType.Group
+                );
 
-            if (conversation is null) return new Response(false, "Group conversation not found");
+            if (conversation is null)
+                return new Response(false, "Group conversation not found");
 
             var userMembership = conversation.Members.FirstOrDefault(m => m.UserId == userId);
-            var targetUser = conversation.Members.FirstOrDefault(m => m.User.Handle == memberHandle);
+            var targetUser = conversation.Members.FirstOrDefault(m =>
+                m.User.Handle == memberHandle
+            );
             if (userMembership is null || targetUser is null)
                 return new Response(false, "Member not found");
 
@@ -310,16 +381,28 @@ namespace ChatApp.Infrastructure.Services
             return new Response(true, "Remove member successfully!");
         }
 
-        public async Task<Response> UpdateMemberRoleAsync(Guid userId, Guid conversationId, UpdateMemberRoleDto request)
+        public async Task<Response> UpdateMemberRoleAsync(
+            Guid userId,
+            Guid conversationId,
+            UpdateMemberRoleDto request
+        )
         {
-            var conversation = await context.Conversations.Include(c => c.Members)
+            var conversation = await context
+                .Conversations.Include(c => c.Members)
                 .ThenInclude(c => c.User)
-                .FirstOrDefaultAsync(c => c.Id == conversationId && c.Type == ConversationType.Group);
+                .FirstOrDefaultAsync(c =>
+                    c.Id == conversationId && c.Type == ConversationType.Group
+                );
 
-            if (conversation is null) return new Response(false, "Conversation not found");
+            if (conversation is null)
+                return new Response(false, "Conversation not found");
 
-            var userMembership = await context.ConversationMembers.FirstOrDefaultAsync(m => m.UserId == userId);
-            var targetUser = await context.ConversationMembers.FirstOrDefaultAsync(u => u.User.Handle == request.MemberHandle);
+            var userMembership = await context.ConversationMembers.FirstOrDefaultAsync(m =>
+                m.UserId == userId
+            );
+            var targetUser = await context.ConversationMembers.FirstOrDefaultAsync(u =>
+                u.User.Handle == request.MemberHandle
+            );
             if (userMembership is null || targetUser is null)
                 return new Response(false, "Member not found");
 
@@ -342,11 +425,18 @@ namespace ChatApp.Infrastructure.Services
         }
 
         //Mute
-        public async Task<Response> MuteConvervasationAsync(Guid userId, Guid conversationId, MuteConversationDto request)
+        public async Task<Response> MuteConvervasationAsync(
+            Guid userId,
+            Guid conversationId,
+            MuteConversationDto request
+        )
         {
-            var converMember = await context.ConversationMembers.FirstOrDefaultAsync(c => c.User.Id == userId && c.Conversation.Id == conversationId);
+            var converMember = await context.ConversationMembers.FirstOrDefaultAsync(c =>
+                c.User.Id == userId && c.Conversation.Id == conversationId
+            );
 
-            if (converMember is null) return new Response(false, "You are not a member of coversation");
+            if (converMember is null)
+                return new Response(false, "You are not a member of coversation");
 
             converMember.MutedUntil = request.MutedUnit;
             await context.SaveChangesAsync();
@@ -354,25 +444,42 @@ namespace ChatApp.Infrastructure.Services
             return new Response(true, "Add new member of conversation successfully");
         }
 
-        public async Task<GenericResponse<ConversationDto>> GetConversationAsync(Guid userId, Guid coversationId)
+        public async Task<GenericResponse<ConversationDto>> GetConversationAsync(
+            Guid userId,
+            Guid coversationId
+        )
         {
-            var conversation = await context.Conversations
-                .Include(c => c.Members)
+            var conversation = await context
+                .Conversations.Include(c => c.Members)
                 .ThenInclude(m => m.User)
                 .FirstOrDefaultAsync(c => c.Id == coversationId);
 
-            if (conversation is null) return new GenericResponse<ConversationDto>(false, "Conversation do not have item");
+            if (conversation is null)
+                return new GenericResponse<ConversationDto>(false, "Conversation do not have item");
 
             if (!conversation.Members.Any(m => m.UserId == userId))
-                return new GenericResponse<ConversationDto>(false, "You are not member in conversation");
+                return new GenericResponse<ConversationDto>(
+                    false,
+                    "You are not member in conversation"
+                );
 
-            return new GenericResponse<ConversationDto>(true, "This is list item of conversation", mapper.Map<ConversationDto>(conversation));
+            return new GenericResponse<ConversationDto>(
+                true,
+                "This is list item of conversation",
+                mapper.Map<ConversationDto>(conversation)
+            );
         }
 
-        public async Task<PagedResult<ConversationSummaryDto>> GetMembersAsync(Guid userId, int page = 1, int pageSize = 20)
+        public async Task<PagedResult<ConversationSummaryDto>> GetMembersAsync(
+            Guid userId,
+            int page = 1,
+            int pageSize = 20
+        )
         {
-            var query = context.ConversationMembers.Include(m => m.Conversation)
-                .ThenInclude(c => c.Members).ThenInclude(m => m.User)
+            var query = context
+                .ConversationMembers.Include(m => m.Conversation)
+                .ThenInclude(c => c.Members)
+                .ThenInclude(m => m.User)
                 .Where(m => m.UserId == userId)
                 .OrderByDescending(m => m.Conversation.LastMessageAt ?? m.Conversation.CreatedAt);
 
@@ -390,24 +497,35 @@ namespace ChatApp.Infrastructure.Services
                 Items = select,
                 TotalCount = totalQuery,
                 PageNumber = page,
-                PageSize = pageSize
+                PageSize = pageSize,
             };
         }
 
-        public async Task<GenericResponse<ConversationDto>> FindOrCreateDirectCovnersationAsync(Guid userId, string handle)
+        public async Task<GenericResponse<ConversationDto>> FindOrCreateDirectCovnersationAsync(
+            Guid userId,
+            string handle
+        )
         {
-            var targetUser = await context.Users.FirstOrDefaultAsync(u => u.Handle == handle && u.IsActive);
+            var targetUser = await context.Users.FirstOrDefaultAsync(u =>
+                u.Handle == handle && u.IsActive
+            );
 
-            if (targetUser is null) return new GenericResponse<ConversationDto>(false, "Not found user");
+            if (targetUser is null)
+                return new GenericResponse<ConversationDto>(false, "Not found user");
 
             var directKey = utils.GenerateDirectkey(userId, targetUser.Id);
 
-            var existingConversation = await context.Conversations.Include(c => c.Members)
+            var existingConversation = await context
+                .Conversations.Include(c => c.Members)
                 .ThenInclude(c => c.UserId)
                 .FirstOrDefaultAsync(c => c.DirectKey == directKey);
 
             if (existingConversation is null)
-                return new GenericResponse<ConversationDto>(true, "Conversation is existed", mapper.Map<ConversationDto>(existingConversation));
+                return new GenericResponse<ConversationDto>(
+                    true,
+                    "Conversation is existed",
+                    mapper.Map<ConversationDto>(existingConversation)
+                );
 
             var creatNewRequest = new CreateDirectConversationDto { TargetHandle = handle };
             return await CreateDirectConversationAsync(userId, creatNewRequest);
@@ -415,58 +533,85 @@ namespace ChatApp.Infrastructure.Services
 
         public async Task<int> CalculateUnreadCountAsync(Guid conversationId, Guid userId)
         {
-            var membership = await context.ConversationMembers
-                .FirstOrDefaultAsync(m => m.ConversationId == conversationId && m.UserId == userId);
+            var membership = await context.ConversationMembers.FirstOrDefaultAsync(m =>
+                m.ConversationId == conversationId && m.UserId == userId
+            );
 
-            if (membership is null) return 0;
+            if (membership is null)
+                return 0;
 
-            var unreadCount = await context.Messages.Where(m => m.ConversationId == conversationId && m.Seq > membership.LastReadSeq && m.SenderId != userId &&
-            m.DeletedAt == null).CountAsync();
+            var unreadCount = await context
+                .Messages.Where(m =>
+                    m.ConversationId == conversationId
+                    && m.Seq > membership.LastReadSeq
+                    && m.SenderId != userId
+                    && m.DeletedAt == null
+                )
+                .CountAsync();
 
             return unreadCount;
         }
 
         public async Task<bool> CanUserAccessConversationAsync(Guid conversationId, Guid userId)
         {
-            return await context.ConversationMembers.AnyAsync(m => m.ConversationId == conversationId && m.UserId == userId);
+            return await context.ConversationMembers.AnyAsync(m =>
+                m.ConversationId == conversationId && m.UserId == userId
+            );
         }
 
-        public async Task<bool> HasPermissionAsync(Guid conversationId, Guid userId, params MemberRole[] requiredRoles)
+        public async Task<bool> HasPermissionAsync(
+            Guid conversationId,
+            Guid userId,
+            params MemberRole[] requiredRoles
+        )
         {
-            var membership = await context.ConversationMembers
-                .FirstOrDefaultAsync(m => m.ConversationId == conversationId && m.UserId == userId);
+            var membership = await context.ConversationMembers.FirstOrDefaultAsync(m =>
+                m.ConversationId == conversationId && m.UserId == userId
+            );
 
             return membership != null && requiredRoles.Contains(membership.Role);
         }
 
         public async Task<string> GetLastMessagePreviewAsync(Guid conversationId)
         {
-            var lastMessage = await context.Messages.
-                Where(m => m.ConversationId == conversationId && m.DeletedAt == null)
+            var lastMessage = await context
+                .Messages.Where(m => m.ConversationId == conversationId && m.DeletedAt == null)
                 .OrderByDescending(m => m.Seq)
-                .Select(m => new { m.Type, m.Body, m.Sender.DisplayName })
+                .Select(m => new
+                {
+                    m.Type,
+                    m.Body,
+                    m.Sender.DisplayName,
+                })
                 .FirstOrDefaultAsync();
 
-            if (lastMessage == null) return string.Empty;
+            if (lastMessage == null)
+                return string.Empty;
 
             return lastMessage.Type switch
             {
-                MessageType.Text => lastMessage.Body.Length > 50 ?
-                    lastMessage.Body.Substring(0, 47) + "..." : lastMessage.Body,
+                MessageType.Text => lastMessage.Body.Length > 50
+                    ? lastMessage.Body.Substring(0, 47) + "..."
+                    : lastMessage.Body,
                 MessageType.Image => $"{lastMessage.DisplayName} sent an image",
                 MessageType.File => $"{lastMessage.DisplayName} sent a file",
                 MessageType.System => "System message",
-                _ => "New message"
+                _ => "New message",
             };
         }
 
         private async Task<Conversation> LoadConversationMember(Guid conversationId)
         {
-            return await context.Conversations.Include(c => c.Members).ThenInclude(m => m.User)
+            return await context
+                .Conversations.Include(c => c.Members)
+                .ThenInclude(m => m.User)
                 .FirstAsync(c => c.Id == conversationId);
         }
 
-        private ConversationSummaryDto CraeteConversationSummary(Conversation conversation, Guid currentUserId)
+        private ConversationSummaryDto CraeteConversationSummary(
+            Conversation conversation,
+            Guid currentUserId
+        )
         {
             var currentUserMembership = conversation.Members.First(m => m.UserId == currentUserId);
 
@@ -495,9 +640,10 @@ namespace ChatApp.Infrastructure.Services
                 LastMessageAt = conversation.LastMessageAt,
                 LastMessagePreview = "Last message preview...", // TODO: implement
                 UnreadCount = 0, // TODO: calculate based on LastReadSeq
-                IsMuted = currentUserMembership.MutedUntil.HasValue &&
-                         currentUserMembership.MutedUntil.Value > DateTimeOffset.UtcNow,
-                MutedUntil = currentUserMembership.MutedUntil
+                IsMuted =
+                    currentUserMembership.MutedUntil.HasValue
+                    && currentUserMembership.MutedUntil.Value > DateTimeOffset.UtcNow,
+                MutedUntil = currentUserMembership.MutedUntil,
             };
         }
     }

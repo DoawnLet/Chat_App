@@ -1,28 +1,36 @@
-﻿using ChatApp.Application.Abstractions.IServices;
+﻿using System.Security.Claims;
+using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 
 namespace ChatApp.Presentation.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize] // Thêm attribute này để yêu cầu authentication
     public class ConversationController(IConversationService service) : ControllerBase
     {
         private Guid GetCurrentUser()
         {
-            var userClaim = User.FindFirst(ClaimTypes.NameIdentifier).Value;
-
-            return Guid.Parse(userClaim!);
+            var userClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userClaim))
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
+            return Guid.Parse(userClaim);
         }
 
         // <summary>
         /// Tạo hội thoại 1-1 (sẽ tự động dedupe nếu đã tồn tại)
         /// </summary>
         [HttpPost("direct")]
-        public async Task<IActionResult> CreateDirectConversationAsync([FromBody] CreateDirectConversationDto request)
+        public async Task<IActionResult> CreateDirectConversationAsync(
+            [FromBody] CreateDirectConversationDto request
+        )
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             var userId = GetCurrentUser();
             var result = await service.CreateDirectConversationAsync(userId, request);
@@ -33,7 +41,14 @@ namespace ChatApp.Presentation.Controllers
             }
 
             var conversation = result.Data;
-            conversation.UnreadCount = await service.CalculateUnreadCountAsync(conversation.Id, userId);
+            if (conversation == null)
+            {
+                return BadRequest(new { error = "Conversation data is null" });
+            }
+            conversation.UnreadCount = await service.CalculateUnreadCountAsync(
+                conversation.Id,
+                userId
+            );
 
             return Ok(conversation);
         }
@@ -42,9 +57,12 @@ namespace ChatApp.Presentation.Controllers
         /// Tạo group conversation
         /// </summary>
         [HttpPost("groups")]
-        public async Task<IActionResult> CreateGroupConversation([FromBody] CreateGroupConversationDto request)
+        public async Task<IActionResult> CreateGroupConversation(
+            [FromBody] CreateGroupConversationDto request
+        )
         {
-            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             var user = GetCurrentUser();
             var result = await service.CreateGroupConversationAsync(user, request);
@@ -60,7 +78,10 @@ namespace ChatApp.Presentation.Controllers
         ///Cập nhật thông tin group
         ///</summary>
         [HttpPut("{conversationId}")]
-        public async Task<IActionResult> UpdateGroupConversation(Guid conversationid, [FromBody] UpdateConversationDto request)
+        public async Task<IActionResult> UpdateGroupConversation(
+            Guid conversationid,
+            [FromBody] UpdateConversationDto request
+        )
         {
             var user = GetCurrentUser();
             var result = await service.UpdateGroupConversationAsync(user, conversationid, request);
@@ -81,7 +102,8 @@ namespace ChatApp.Presentation.Controllers
         {
             var user = GetCurrentUser();
             var result = await service.DeleteGroupConversationAsync(user, conversationId);
-            if (!result.Flag) return BadRequest(new { error = result.Message });
+            if (!result.Flag)
+                return BadRequest(new { error = result.Message });
 
             return Ok(result);
         }
@@ -94,7 +116,8 @@ namespace ChatApp.Presentation.Controllers
         {
             var user = GetCurrentUser();
             var result = await service.LeaveGroupConversationAsync(user, conversationId);
-            if (!result.Flag) return BadRequest(new { error = result.Message });
+            if (!result.Flag)
+                return BadRequest(new { error = result.Message });
             return Ok(result);
         }
 
@@ -103,11 +126,15 @@ namespace ChatApp.Presentation.Controllers
         ///Thêm thành viên mới
         ///<summary>
         [HttpPost("{conversationId}/members")]
-        public async Task<IActionResult> AddMember(Guid conversationId, [FromBody] AddMembersDto request)
+        public async Task<IActionResult> AddMember(
+            Guid conversationId,
+            [FromBody] AddMembersDto request
+        )
         {
             var user = GetCurrentUser();
             var result = await service.AddMembersAsync(user, conversationId, request);
-            if (!result.Flag) return BadRequest(new { error = result.Message });
+            if (!result.Flag)
+                return BadRequest(new { error = result.Message });
 
             return Ok(result);
         }
@@ -131,7 +158,10 @@ namespace ChatApp.Presentation.Controllers
         /// Thay đổi role của member
         /// </summary>
         [HttpPatch("{conversationId}/members/role")]
-        public async Task<IActionResult> UpdateMemberRole(Guid conversationId, [FromBody] UpdateMemberRoleDto request)
+        public async Task<IActionResult> UpdateMemberRole(
+            Guid conversationId,
+            [FromBody] UpdateMemberRoleDto request
+        )
         {
             var userId = GetCurrentUser();
             var result = await service.UpdateMemberRoleAsync(userId, conversationId, request);
@@ -146,12 +176,16 @@ namespace ChatApp.Presentation.Controllers
         /// Mute/unmute conversation
         ///</summary>
         [HttpPost("{conversationId}")]
-        public async Task<IActionResult> MutedConversation(Guid conversationId, MuteConversationDto request)
+        public async Task<IActionResult> MutedConversation(
+            Guid conversationId,
+            MuteConversationDto request
+        )
         {
             var userId = GetCurrentUser();
             var result = await service.MuteConvervasationAsync(userId, conversationId, request);
 
-            if (!result.Flag) return BadRequest(new { error = result.Message });
+            if (!result.Flag)
+                return BadRequest(new { error = result.Message });
 
             return Ok(new { message = "Conversation mute status updated" });
         }
@@ -177,7 +211,10 @@ namespace ChatApp.Presentation.Controllers
         /// Lấy danh sách conversations của user
         /// </summary>
         [HttpGet]
-        public async Task<IActionResult> GetUserConversation([FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+        public async Task<IActionResult> GetUserConversation(
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 20
+        )
         {
             var userId = GetCurrentUser();
             var result = await service.GetMembersAsync(userId, page, pageSize);

@@ -13,10 +13,13 @@ namespace ChatApp.Infrastructure.Services
     {
         public async Task<Response> UnBlockUserAsync(Guid userid, string targetHandle)
         {
-            var blockList = await context.Contacts.Include(c => c.Target)
-                .FirstOrDefaultAsync(c => c.OwnerId == userid &&
-                                           c.Target.Handle == targetHandle &&
-                                           c.Status == ContactStatus.Blocked);
+            var blockList = await context
+                .Contacts.Include(c => c.Target)
+                .FirstOrDefaultAsync(c =>
+                    c.OwnerId == userid
+                    && c.Target.Handle == targetHandle
+                    && c.Status == ContactStatus.Blocked
+                );
 
             if (blockList is null)
                 return new Response(false, "Do not have user in list block");
@@ -43,9 +46,11 @@ namespace ChatApp.Infrastructure.Services
             var targetUser = getUserByHandle.Data;
 
             //Tìm và xóa các quan hệ hiện đang có hoặc nếu có
-            var existingContact = await context.Contacts
-                .Where(u => (u.OwnerId == userid && u.TargetId == targetUser.Id) ||
-                            (u.OwnerId == currentUser.Id && u.TargetId == userid))
+            var existingContact = await context
+                .Contacts.Where(u =>
+                    (u.OwnerId == userid && u.TargetId == targetUser.Id)
+                    || (u.OwnerId == currentUser.Id && u.TargetId == userid)
+                )
                 .ToListAsync();
 
             if (existingContact is null)
@@ -71,16 +76,20 @@ namespace ChatApp.Infrastructure.Services
         public async Task<Response> RemoveRequestFriendAysnc(Guid userid, string friendHandle)
         {
             var getUser = await GetUserByHandle(friendHandle);
-            if (getUser is null) return new Response(false, "Not found");
+            if (getUser is null)
+                return new Response(false, "Not found");
 
             var targetUser = getUser.Data;
 
-            var friendShips = await context.Contacts.
-                    Where(c => (c.OwnerId == userid && c.Target.Id == targetUser.Id) ||
-                                (c.OwnerId == targetUser.Id && c.TargetId == userid))
-                    .ToListAsync();
+            var friendShips = await context
+                .Contacts.Where(c =>
+                    (c.OwnerId == userid && c.Target.Id == targetUser.Id)
+                    || (c.OwnerId == targetUser.Id && c.TargetId == userid)
+                )
+                .ToListAsync();
 
-            if (friendShips is null) return new Response(false, "Friendship not found");
+            if (friendShips is null)
+                return new Response(false, "Friendship not found");
 
             context.Contacts.RemoveRange(friendShips);
 
@@ -89,29 +98,49 @@ namespace ChatApp.Infrastructure.Services
             return new Response(true, "RDelete friend request successfully");
         }
 
-        public async Task<GenericResponse<ContactStatus>> GetRelationShipStatusAsync(Guid userid, string handle)
+        public async Task<GenericResponse<ContactStatus>> GetRelationShipStatusAsync(
+            Guid userid,
+            string handle
+        )
         {
             var getUser = await GetUserById(userid);
             var targetUser = getUser.Data;
-            if (getUser is null) return new GenericResponse<ContactStatus>(false, "Not found");
+            if (getUser is null)
+                return new GenericResponse<ContactStatus>(false, "Not found");
 
-            var contact = await context.Contacts
-                .FirstOrDefaultAsync(c => (c.OwnerId == userid && c.TargetId == targetUser.Id) ||
-                (c.OwnerId == targetUser.Id && c.TargetId == userid));
+            var contact = await context.Contacts.FirstOrDefaultAsync(c =>
+                (c.OwnerId == userid && c.TargetId == targetUser.Id)
+                || (c.OwnerId == targetUser.Id && c.TargetId == userid)
+            );
 
-            if (contact is null) return new GenericResponse<ContactStatus>(false, "Not found");
+            if (contact is null)
+                return new GenericResponse<ContactStatus>(false, "Not found");
 
-            return new GenericResponse<ContactStatus>(true, "Contact relationship list", contact.Status);
+            return new GenericResponse<ContactStatus>(
+                true,
+                "Contact relationship list",
+                contact.Status
+            );
         }
 
-        public async Task<GenericResponse<FriendRequestDto>> ResponseToFriendRequestAsync(Guid userId, ResponseFriendRequestDto response)
+        public async Task<GenericResponse<FriendRequestDto>> ResponseToFriendRequestAsync(
+            Guid userId,
+            ResponseFriendRequestDto response
+        )
         {
-            var friendRequest = await context.Contacts.Include(c => c.Owner).Include(c => c.Target)
-                .FirstOrDefaultAsync(c => c.Id == response.RequestId &&
-                                          c.TargetId == userId &&
-                                          c.Status == ContactStatus.Pending);
+            var friendRequest = await context
+                .Contacts.Include(c => c.Owner)
+                .Include(c => c.Target)
+                .FirstOrDefaultAsync(c =>
+                    c.Id == response.RequestId
+                    && c.TargetId == userId
+                    && c.Status == ContactStatus.Pending
+                );
             if (friendRequest is null)
-                return new GenericResponse<FriendRequestDto>(false, "Friend request not found or already proccessed");
+                return new GenericResponse<FriendRequestDto>(
+                    false,
+                    "Friend request not found or already proccessed"
+                );
 
             if (response.Accept)
             {
@@ -124,7 +153,7 @@ namespace ChatApp.Infrastructure.Services
                     OwnerId = userId,
                     TargetId = friendRequest.OwnerId,
                     Status = ContactStatus.Accepted,
-                    Note = "Auto-create reverse friendship"
+                    Note = "Auto-create reverse friendship",
                 };
                 context.Contacts.Add(reverseContact);
             }
@@ -135,10 +164,17 @@ namespace ChatApp.Infrastructure.Services
             }
 
             await context.SaveChangesAsync();
-            return new GenericResponse<FriendRequestDto>(true, "Accept friend successfully", mapper.Map<FriendRequestDto>(friendRequest));
+            return new GenericResponse<FriendRequestDto>(
+                true,
+                "Accept friend successfully",
+                mapper.Map<FriendRequestDto>(friendRequest)
+            );
         }
 
-        public async Task<GenericResponse<FriendRequestDto>> SendFriendRequestAsync(Guid userId, SendFriendRequestDto request)
+        public async Task<GenericResponse<FriendRequestDto>> SendFriendRequestAsync(
+            Guid userId,
+            SendFriendRequestDto request
+        )
         {
             //Sử dụng await để lấy kết quả thực tế phải chờ thực hiện.
             var userHandle = await GetUserByHandle(request.TagerHandle);
@@ -155,22 +191,31 @@ namespace ChatApp.Infrastructure.Services
             var currentUser = userById.Data;
 
             //Kiểm tra có các tài khoản có liên kết với nhau hay chưa
-            var existingContact = await context.Contacts
-                .FirstOrDefaultAsync(u =>
-                (u.OwnerId == userId && u.TargetId == targetUser.Id) ||
-                (u.OwnerId == currentUser.Id && u.TargetId == userId));
+            var existingContact = await context.Contacts.FirstOrDefaultAsync(u =>
+                (u.OwnerId == userId && u.TargetId == targetUser.Id)
+                || (u.OwnerId == currentUser.Id && u.TargetId == userId)
+            );
 
             if (existingContact != null)
             {
                 return existingContact.Status switch
                 {
-                    ContactStatus.Accepted => new GenericResponse<FriendRequestDto>(false, "Already Friend"),
+                    ContactStatus.Accepted => new GenericResponse<FriendRequestDto>(
+                        false,
+                        "Already Friend"
+                    ),
 
-                    ContactStatus.Pending => new GenericResponse<FriendRequestDto>(false, "Friend request already sent"),
+                    ContactStatus.Pending => new GenericResponse<FriendRequestDto>(
+                        false,
+                        "Friend request already sent"
+                    ),
 
-                    ContactStatus.Blocked => new GenericResponse<FriendRequestDto>(false, "Cannot send friend request"),
+                    ContactStatus.Blocked => new GenericResponse<FriendRequestDto>(
+                        false,
+                        "Cannot send friend request"
+                    ),
 
-                    _ => new GenericResponse<FriendRequestDto>(false, "Unknow relationship status")
+                    _ => new GenericResponse<FriendRequestDto>(false, "Unknow relationship status"),
                 };
             }
 
@@ -180,32 +225,41 @@ namespace ChatApp.Infrastructure.Services
                 Id = Guid.NewGuid(),
                 OwnerId = userId,
                 TargetId = targetUser.Id,
-                Status = ContactStatus.Accepted,
-                Note = request.Note
+                Status = ContactStatus.Pending,
+                Note = request.Note,
             };
 
             context.Contacts.Add(friendRequest);
             await context.SaveChangesAsync();
 
             //Load lại trả về response
-            var result = await context.Contacts.Include(c => c.Owner).Include(c => c.Target).FirstAsync(c => c.Id == friendRequest.Id);
+            var result = await context
+                .Contacts.Include(c => c.Owner)
+                .Include(c => c.Target)
+                .FirstAsync(c => c.Id == friendRequest.Id);
 
-            return new GenericResponse<FriendRequestDto>(true, "Friend request sent succesfully!", mapper.Map<FriendRequestDto>(result));
+            return new GenericResponse<FriendRequestDto>(
+                true,
+                "Friend request sent succesfully!",
+                mapper.Map<FriendRequestDto>(result)
+            );
         }
 
-        public async Task<PagedResult<FriendRequestDto>> GetPendingFriendRequestsAsync(Guid userId, int page = 1, int pageSize = 20)
+        public async Task<PagedResult<FriendRequestDto>> GetPendingFriendRequestsAsync(
+            Guid userId,
+            int page = 1,
+            int pageSize = 20
+        )
         {
-            var query = context.Contacts
-                .Include(c => c.Owner)
+            var query = context
+                .Contacts.Include(c => c.Owner)
                 .Include(c => c.Target)
                 .Where(c => c.TargetId == userId && c.Status == ContactStatus.Pending);
 
             var totalCount = await query.CountAsync();
 
             //Không thể tích hợp mapper vào nên phải tách ra
-            var items = await query
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .ToListAsync();
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
             var friendRequests = items.Select(c => mapper.Map<FriendRequestDto>(c)).ToList();
 
@@ -214,23 +268,25 @@ namespace ChatApp.Infrastructure.Services
                 Items = friendRequests,
                 TotalCount = totalCount,
                 PageNumber = page,
-                PageSize = pageSize
+                PageSize = pageSize,
             };
         }
 
-        public async Task<PagedResult<FriendRequestDto>> GetSentFriendRequestsAsync(Guid userId, int page = 1, int pageSize = 20)
+        public async Task<PagedResult<FriendRequestDto>> GetSentFriendRequestsAsync(
+            Guid userId,
+            int page = 1,
+            int pageSize = 20
+        )
         {
-            var query = context.Contacts
-                 .Include(c => c.Owner)
-                 .Include(c => c.Target)
-                 .Where(c => c.TargetId == userId && c.Status == ContactStatus.Pending);
+            var query = context
+                .Contacts.Include(c => c.Owner)
+                .Include(c => c.Target)
+                .Where(c => c.OwnerId == userId && c.Status == ContactStatus.Pending);
 
             var totalCount = await query.CountAsync();
 
             //Không thể tích hợp mapper vào nên phải tách ra
-            var items = await query
-                .Skip((page - 1) * pageSize).Take(pageSize)
-                .ToListAsync();
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
             var friendRequests = items.Select(c => mapper.Map<FriendRequestDto>(c)).ToList();
 
@@ -239,63 +295,71 @@ namespace ChatApp.Infrastructure.Services
                 Items = friendRequests,
                 TotalCount = totalCount,
                 PageNumber = page,
-                PageSize = pageSize
+                PageSize = pageSize,
             };
         }
 
-        public async Task<PagedResult<FriendDto>> GetFriendsAsync(Guid userId, int page = 1, int pageSize = 20)
+        public async Task<PagedResult<FriendDto>> GetFriendsAsync(
+            Guid userId,
+            int page = 1,
+            int pageSize = 20
+        )
         {
-            var query = context.Contacts.Include(c => c.Target)
+            var query = context
+                .Contacts.Include(c => c.Target)
                 .Where(c => c.OwnerId == userId && c.Status == ContactStatus.Accepted)
                 .OrderBy(c => c.Target.DisplayName);
 
             var totalCount = await query.CountAsync();
-            var items = await query
-                 .Skip((page - 1) * pageSize).Take(pageSize)
-                 .ToListAsync();
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
-            var list = items.Select(c => new FriendDto
-            {
-                Id = c.Id,
-                Friend = mapper.Map<UserProfileDto>(c.Target),
-                FriendsSince = c.CreatedAt,
-                Note = c.Note,
-            }).ToList();
+            var list = items
+                .Select(c => new FriendDto
+                {
+                    Id = c.Id,
+                    Friend = mapper.Map<UserProfileDto>(c.Target),
+                    FriendsSince = c.CreatedAt,
+                    Note = c.Note,
+                })
+                .ToList();
 
             return new PagedResult<FriendDto>
             {
                 Items = list,
                 TotalCount = totalCount,
                 PageNumber = page,
-                PageSize = pageSize
+                PageSize = pageSize,
             };
         }
 
-        public async Task<PagedResult<UserProfileDto>> GetBlockedUsersAsync(Guid userId, int page = 1, int pageSize = 20)
+        public async Task<PagedResult<UserProfileDto>> GetBlockedUsersAsync(
+            Guid userId,
+            int page = 1,
+            int pageSize = 20
+        )
         {
-            var query = context.Contacts
-                .Include(c => c.Target)
+            var query = context
+                .Contacts.Include(c => c.Target)
                 .Where(c => c.OwnerId == userId && c.Status == ContactStatus.Blocked)
                 .OrderByDescending(c => c.UpdatedAt);
 
             var totalCount = await query.CountAsync();
-            var items = await query
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
+            var items = await query.Skip((page - 1) * pageSize).Take(pageSize).ToListAsync();
 
             return new PagedResult<UserProfileDto>
             {
                 Items = mapper.Map<List<UserProfileDto>>(items.Select(c => c.Target)),
                 TotalCount = totalCount,
                 PageNumber = page,
-                PageSize = pageSize
+                PageSize = pageSize,
             };
         }
 
         private async Task<GenericResponse<UserProfileDto>> GetUserByHandle(string handle)
         {
-            var getUser = await context.Users.FirstOrDefaultAsync(u => u.Handle == handle && u.IsActive == true);
+            var getUser = await context.Users.FirstOrDefaultAsync(u =>
+                u.Handle == handle && u.IsActive == true
+            );
             if (getUser is null)
             {
                 return new GenericResponse<UserProfileDto>(false, "User is not found", null!);
@@ -306,7 +370,7 @@ namespace ChatApp.Infrastructure.Services
                 Id = getUser.Id,
                 Handle = getUser.Handle,
                 DisplayName = getUser.DisplayName,
-                AvatarUrl = getUser.AvatarUrl
+                AvatarUrl = getUser.AvatarUrl,
             };
 
             return new GenericResponse<UserProfileDto>(true, "User is found", user);
@@ -326,7 +390,7 @@ namespace ChatApp.Infrastructure.Services
                 Id = getUser.Id,
                 Handle = getUser.Handle,
                 DisplayName = getUser.DisplayName,
-                AvatarUrl = getUser.AvatarUrl
+                AvatarUrl = getUser.AvatarUrl,
             };
 
             return new GenericResponse<UserProfileDto>(true, "User is found", user);
