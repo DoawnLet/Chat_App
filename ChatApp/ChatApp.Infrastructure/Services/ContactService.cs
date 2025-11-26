@@ -49,7 +49,7 @@ namespace ChatApp.Infrastructure.Services
             var existingContact = await context
                 .Contacts.Where(u =>
                     (u.OwnerId == userid && u.TargetId == targetUser.Id)
-                    || (u.OwnerId == currentUser.Id && u.TargetId == userid)
+                    || (u.OwnerId == targetUser.Id && u.TargetId == userid)
                 )
                 .ToListAsync();
 
@@ -69,6 +69,7 @@ namespace ChatApp.Infrastructure.Services
             };
 
             context.Contacts.Add(blockList);
+            await context.SaveChangesAsync();
 
             return new Response(true, "Add item in list block user sucessfully");
         }

@@ -9,7 +9,10 @@ namespace ChatApp.Application.DependencyInjection
 {
     public static class ServicesContainer
     {
-        public static IServiceCollection AddApplicationService(this IServiceCollection services, IConfiguration config)
+        public static IServiceCollection AddApplicationService(
+            this IServiceCollection services,
+            IConfiguration config
+        )
         {
             //Create Dependency inject
 
@@ -23,19 +26,22 @@ namespace ChatApp.Application.DependencyInjection
                 Delay = TimeSpan.FromMilliseconds(500),
                 OnRetry = args =>
                 {
-                    string message = $"OnRetry, Attempt: {args.AttemptNumber} OutCome {args.Outcome}";
+                    string message =
+                        $"OnRetry, Attempt: {args.AttemptNumber} OutCome {args.Outcome}";
                     LogExceptions.LogToConsole(message);
                     LogExceptions.LogToDebug(message);
                     return ValueTask.CompletedTask;
-                }
+                },
             };
 
             //use retry strategy
-            services.AddResiliencePipeline("my-retry-pipeline",
-                 builder =>
-                 {
-                     builder.AddRetry(retryStrategy);
-                 });
+            services.AddResiliencePipeline(
+                "my-retry-pipeline",
+                builder =>
+                {
+                    builder.AddRetry(retryStrategy);
+                }
+            );
 
             return services;
         }

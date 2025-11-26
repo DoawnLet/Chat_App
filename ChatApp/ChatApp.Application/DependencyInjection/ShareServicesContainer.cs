@@ -11,20 +11,32 @@ namespace ChatApp.Application.DependencyInjection
 {
     public static class ShareServicesContainer
     {
-        public static IServiceCollection AddShareServices<TContext>(this IServiceCollection service, IConfiguration config, string fileName) where TContext : DbContext
+        public static IServiceCollection AddShareServices<TContext>(
+            this IServiceCollection service,
+            IConfiguration config,
+            string fileName
+        )
+            where TContext : DbContext
         {
-            service.AddDbContext<TContext>(option => option.UseSqlServer(
-               config.GetConnectionString("ChatAppDb"),
-               sqlserveroption => sqlserveroption.EnableRetryOnFailure()));
+            service.AddDbContext<TContext>(option =>
+                option.UseSqlServer(
+                    config.GetConnectionString("ChatAppDb"),
+                    sqlserveroption => sqlserveroption.EnableRetryOnFailure()
+                )
+            );
 
             //configure serilog logging
             Log.Logger = new LoggerConfiguration()
                 .MinimumLevel.Information()
                 .WriteTo.Console()
                 .WriteTo.Debug()
-                .WriteTo.File(path: $"{fileName}.text", restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
-               outputTemplate: "{TimeStamp:YYYY-MM-dd HH:mm:ss fff zzz} [{Level:u3}] {message:lj}{NewLine}{Exception}",
-               rollingInterval: RollingInterval.Day).CreateLogger();
+                .WriteTo.File(
+                    path: $"{fileName}.text",
+                    restrictedToMinimumLevel: Serilog.Events.LogEventLevel.Information,
+                    outputTemplate: "{TimeStamp:YYYY-MM-dd HH:mm:ss fff zzz} [{Level:u3}] {message:lj}{NewLine}{Exception}",
+                    rollingInterval: RollingInterval.Day
+                )
+                .CreateLogger();
 
             //JWT
             JWTAuthenticationScheme.AddJWTAuthenticationScheme(service, config);
