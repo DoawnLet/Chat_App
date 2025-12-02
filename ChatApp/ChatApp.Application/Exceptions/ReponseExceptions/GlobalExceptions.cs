@@ -1,8 +1,8 @@
-﻿using ChatApp.Application.Exceptions.Logs;
+﻿using System.Net;
+using System.Text.Json;
+using ChatApp.Application.Exceptions.Logs;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using System.Net;
-using System.Text.Json;
 
 namespace ChatApp.Application.Exceptions.ReponseExceptions
 {
@@ -24,13 +24,24 @@ namespace ChatApp.Application.Exceptions.ReponseExceptions
                     case StatusCodes.Status400BadRequest:
                         title = "Bad Request";
                         message = "The request was invalid or cannot be served";
-                        await ModifyHeader(context, title, message, StatusCodes.Status400BadRequest);
+                        await ModifyHeader(
+                            context,
+                            title,
+                            message,
+                            StatusCodes.Status400BadRequest
+                        );
                         break;
 
                     case StatusCodes.Status401Unauthorized:
                         title = "Unauthorized";
-                        message = "Authentication is required and has failed or has not been provided";
-                        await ModifyHeader(context, title, message, StatusCodes.Status401Unauthorized);
+                        message =
+                            "Authentication is required and has failed or has not been provided";
+                        await ModifyHeader(
+                            context,
+                            title,
+                            message,
+                            StatusCodes.Status401Unauthorized
+                        );
                         break;
 
                     case StatusCodes.Status403Forbidden:
@@ -48,7 +59,12 @@ namespace ChatApp.Application.Exceptions.ReponseExceptions
                     case StatusCodes.Status429TooManyRequests:
                         title = "Warning";
                         message = "Too many requests";
-                        await ModifyHeader(context, title, message, StatusCodes.Status429TooManyRequests);
+                        await ModifyHeader(
+                            context,
+                            title,
+                            message,
+                            StatusCodes.Status429TooManyRequests
+                        );
                         break;
                 }
             }
@@ -95,16 +111,31 @@ namespace ChatApp.Application.Exceptions.ReponseExceptions
             }
         }
 
-        private async Task ModifyHeader(HttpContext context, string title, string message, int statusCode)
+        private async Task ModifyHeader(
+            HttpContext context,
+            string title,
+            string message,
+            int statusCode
+        )
         {
+            if (context.Response.HasStarted)
+            {
+                return;  // Skip nếu response đã started
+            }
+
             context.Response.StatusCode = statusCode;
             context.Response.ContentType = "application/json";
-            await context.Response.WriteAsync(JsonSerializer.Serialize(new ProblemDetails()
-            {
-                Detail = message,
-                Status = statusCode,
-                Title = title
-            }), CancellationToken.None);
+            await context.Response.WriteAsync(
+                JsonSerializer.Serialize(
+                    new ProblemDetails()
+                    {
+                        Detail = message,
+                        Status = statusCode,
+                        Title = title,
+                    }
+                ),
+                CancellationToken.None
+            );
         }
     }
 }

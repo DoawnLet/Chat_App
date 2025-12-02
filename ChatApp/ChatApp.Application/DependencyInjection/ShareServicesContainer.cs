@@ -1,6 +1,4 @@
-﻿using ChatApp.Application.Abstractions;
-using ChatApp.Application.Exceptions.ReponseExceptions;
-using Microsoft.AspNetCore.Authentication;
+﻿using ChatApp.Application.Exceptions.ReponseExceptions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;

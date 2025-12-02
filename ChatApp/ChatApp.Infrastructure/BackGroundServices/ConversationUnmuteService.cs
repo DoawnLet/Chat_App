@@ -5,11 +5,14 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace ChatApp.Application.BackGroundServices
-{    /// <summary>
-     /// Service để tự động unmute conversations khi hết thời gian mute
-     /// </summary>
-    public class ConversationUnmuteService(IServiceProvider serviceProvider,
-            ILogger<ConversationUnmuteService> _logger) : BackgroundService
+{
+    /// <summary>
+    /// Service để tự động unmute conversations khi hết thời gian mute
+    /// </summary>
+    public class ConversationUnmuteService(
+        IServiceProvider serviceProvider,
+        ILogger<ConversationUnmuteService> _logger
+    ) : BackgroundService
     {
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -21,14 +24,20 @@ namespace ChatApp.Application.BackGroundServices
                     var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
                     //Find conversation have experies
-                    var expiredMutes = await context.ConversationMembers.
-                        Where(m => m.MutedUntil.HasValue && m.MutedUntil.Value <= DateTimeOffset.UtcNow)
+                    var expiredMutes = await context
+                        .ConversationMembers.Where(m =>
+                            m.MutedUntil.HasValue && m.MutedUntil.Value <= DateTimeOffset.UtcNow
+                        )
                         .ToListAsync();
 
                     foreach (var member in expiredMutes)
                     {
                         member.MutedUntil = null;
-                        _logger.LogInformation("Auto-unmuted conversation {ConversationId} for user {UserId}", member.ConversationId, member.UserId);
+                        _logger.LogInformation(
+                            "Auto-unmuted conversation {ConversationId} for user {UserId}",
+                            member.ConversationId,
+                            member.UserId
+                        );
                     }
 
                     if (expiredMutes.Any())

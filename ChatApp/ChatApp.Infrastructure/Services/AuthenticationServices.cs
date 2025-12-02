@@ -2,6 +2,7 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
 using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using ChatApp.Application.Exceptions.Responses;
@@ -56,7 +57,7 @@ namespace ChatApp.Infrastructure.Services
             if (!verifyPassword)
                 return new Response(false, "Password is incorrect");
 
-            string token = GeneratedToken(getUser);
+            string token = await GeneratedTokenAsync(getUser);
 
             return new Response(true, token);
         }
@@ -138,7 +139,7 @@ namespace ChatApp.Infrastructure.Services
             return await context.Users.FirstOrDefaultAsync(x => x.Handle == handle);
         }
 
-        public string GeneratedToken(User user)
+        public async Task<string> GeneratedTokenAsync(User user)
         {
             var devicedId = Guid.NewGuid();
             var now = DateTimeOffset.UtcNow;
@@ -166,11 +167,11 @@ namespace ChatApp.Infrastructure.Services
             );
 
             //Tạo và lưu refresh token
-            SaveRefreshToken(user.Id, devicedId, expires);
+            await SaveRefreshTokenAsync(user.Id, devicedId, expires);
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        private void SaveRefreshToken(Guid userId, Guid deviceId, DateTimeOffset expiresAt)
+        private async Task SaveRefreshTokenAsync(Guid userId, Guid deviceId, DateTimeOffset expiresAt)
         {
             var bytes = RandomNumberGenerator.GetBytes(64);
             var token = Convert.ToBase64String(bytes);

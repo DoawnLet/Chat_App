@@ -28,8 +28,8 @@ namespace ChatApp.Application.DependencyInjection
                 {
                     string message =
                         $"OnRetry, Attempt: {args.AttemptNumber} OutCome {args.Outcome}";
-                    LogExceptions.LogToConsole(message);
-                    LogExceptions.LogToDebug(message);
+                    LogExceptions.LogToConsole("File log message focus:" + message);
+                    LogExceptions.LogToDebug("File log debug message focus:" + message);
                     return ValueTask.CompletedTask;
                 },
             };

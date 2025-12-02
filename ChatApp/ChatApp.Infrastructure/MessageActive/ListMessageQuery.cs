@@ -4,5 +4,5 @@ using MediatR;
 namespace ChatApp.Infrastructure.MessageActive
 {
     public record class ListMessageQuery
-    (Guid ConversationId, long? AftterSeq, int limit = 50) : IRequest<IReadOnlyList<MessageDto>>;
+    (Guid ConversationId, long? AfterSeq, int limit = 50) : IRequest<IReadOnlyList<MessageDto>>;
 }

@@ -95,7 +95,7 @@ namespace ChatApp.Presentation.Controllers
         }
 
         ///<summary>
-        /// xóa group
+        /// xóa group conversation
         ///</summary>
         [HttpDelete("{conversationId}")]
         public async Task<IActionResult> DeleteGroupConversation(Guid conversationId)

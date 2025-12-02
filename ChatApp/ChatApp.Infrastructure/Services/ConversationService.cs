@@ -34,9 +34,11 @@ namespace ChatApp.Infrastructure.Services
 
             //kiểm tra xem có phải là bạn bè không?
             var friendShip = await context.Contacts.AnyAsync(c =>
-                (c.OwnerId == userId && c.TargetId == targetUser.Id)
-                || (c.OwnerId == targetUser.Id && c.TargetId == userId)
-                    && c.Status == ContactStatus.Accepted
+                (
+                    (c.OwnerId == userId && c.TargetId == targetUser.Id)
+                    || (c.OwnerId == targetUser.Id && c.TargetId == userId)
+                )
+                && c.Status == ContactStatus.Accepted
             );
 
             if (!friendShip)
@@ -113,6 +115,7 @@ namespace ChatApp.Infrastructure.Services
             };
 
             context.ConversationMembers.AddRange(members);
+            await context.SaveChangesAsync();
 
             //load thông tin đầy đủ
             var loading = await LoadConversationMember(newConversation.Id);
@@ -323,12 +326,12 @@ namespace ChatApp.Infrastructure.Services
             }
 
             var newMembers = user.Select(user => new ConversationMember
-                {
-                    ConversationId = conversationId,
-                    UserId = user.Id,
-                    Role = MemberRole.Member,
-                    JoinedAt = DateTimeOffset.UtcNow,
-                })
+            {
+                ConversationId = conversationId,
+                UserId = user.Id,
+                Role = MemberRole.Member,
+                JoinedAt = DateTimeOffset.UtcNow,
+            })
                 .ToList();
 
             context.ConversationMembers.AddRange(newMembers);

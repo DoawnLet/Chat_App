@@ -5,6 +5,7 @@ using ChatApp.Application.DependencyInjection;
 using ChatApp.Application.Helps;
 using ChatApp.Application.Helps.Mapping;
 using ChatApp.Infrastructure.Data;
+using ChatApp.Infrastructure.MessageActive;
 using ChatApp.Infrastructure.Repositories;
 using ChatApp.Infrastructure.Services;
 using Microsoft.AspNetCore.Builder;
@@ -31,6 +32,10 @@ namespace ChatApp.Infrastructure.DependencyInjection
                 cfg.AddProfile<MapToUserProfileProfile>();
                 cfg.AddProfile<ConversionProfile>();
             });
+
+            // Thêm MediatR registration
+            services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(SendMessageHandler).Assembly));
+            services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ListMessageHandler).Assembly));
 
             services.AddScoped<IAuthenticationService, AuthenticationServices>();
             services.AddScoped<IUserRepository, UserRepository>();

@@ -11,7 +11,7 @@ namespace ChatApp.Infrastructure.MessageActive
         {
             var query = context.Messages.Where(m => m.ConversationId == request.ConversationId);
 
-            if (request.AftterSeq is long s) query = query.Where(m => m.Seq > s);
+            if (request.AfterSeq is long s) query = query.Where(m => m.Seq >= s);
 
             return await query.OrderBy(m => m.Seq)
                 .Take(Math.Clamp(request.limit, 1, 200))
