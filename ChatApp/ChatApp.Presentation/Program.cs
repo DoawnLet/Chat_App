@@ -5,6 +5,7 @@ using ChatApp.Infrastructure.MessageActive;
 using ChatApp.Presentation.Realtime;
 using ChatApp.Presentation.Realtime.ChatHubs;
 using Microsoft.AspNetCore.CookiePolicy;
+using Serilog;
 
 namespace ChatApp.Presentation
 {
@@ -14,12 +15,14 @@ namespace ChatApp.Presentation
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            builder.Host.UseSerilog();
             builder.Services.AddControllers();
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
             builder.Services.AddInfrastructureService(builder.Configuration);
             builder.Services.AddApplicationService(builder.Configuration);
+            //builder.Services.AddShareServices(builder.Configuration);
 
             builder.Services.AddScoped<IMessageBus, SignalRMessageBus>();
             // Thêm MediatR registration

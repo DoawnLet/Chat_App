@@ -2,7 +2,6 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
-using System.Threading.Tasks;
 using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using ChatApp.Application.Exceptions.Responses;
