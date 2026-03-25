@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using ChatApp.Application.Exceptions.Responses;
@@ -11,6 +11,20 @@ namespace ChatApp.Infrastructure.Services
 {
     public class ContactService(AppDbContext context, IMapper mapper) : IContactService
     {
+        public async Task<Response> CancelFriendRequestAsync(Guid userId, Guid requestId)
+        {
+            var req = await context.Contacts.FirstOrDefaultAsync(c =>
+                c.Id == requestId && c.OwnerId == userId && c.Status == ContactStatus.Pending
+            );
+
+            if (req is null)
+                return new Response(false, "Friend request not found or already processed");
+
+            context.Contacts.Remove(req);
+            await context.SaveChangesAsync();
+            return new Response(true, "Friend request cancelled successfully");
+        }
+
         public async Task<Response> UnBlockUserAsync(Guid userid, string targetHandle)
         {
             var blockList = await context
@@ -104,9 +118,14 @@ namespace ChatApp.Infrastructure.Services
             string handle
         )
         {
-            var getUser = await GetUserById(userid);
-            var targetUser = getUser.Data;
-            if (getUser is null)
+            if (string.IsNullOrWhiteSpace(handle))
+                return new GenericResponse<ContactStatus>(false, "Not found");
+
+            var targetUser = await context.Users.FirstOrDefaultAsync(u =>
+                u.Handle == handle && u.IsActive
+            );
+
+            if (targetUser is null)
                 return new GenericResponse<ContactStatus>(false, "Not found");
 
             var contact = await context.Contacts.FirstOrDefaultAsync(c =>

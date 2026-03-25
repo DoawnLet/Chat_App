@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -14,6 +14,10 @@ namespace ChatApp.Presentation.Controllers
         private Guid GetCurrentUser()
         {
             var userClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userClaim))
+            {
+                throw new UnauthorizedAccessException("User not authenticated");
+            }
             return Guid.Parse(userClaim);
         }
 
@@ -49,6 +53,21 @@ namespace ChatApp.Presentation.Controllers
             {
                 return BadRequest(new { error = result.Message });
             }
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Hủy lời mời kết bạn đã gửi (chỉ owner của request, trạng thái Pending)
+        /// </summary>
+        [HttpDelete("requests/{requestId:guid}")]
+        public async Task<IActionResult> CancelFriendRequest(Guid requestId)
+        {
+            var userId = GetCurrentUser();
+            var result = await service.CancelFriendRequestAsync(userId, requestId);
+
+            if (!result.Flag)
+                return BadRequest(new { error = result.Message });
+
             return Ok(result);
         }
 
@@ -114,10 +133,10 @@ namespace ChatApp.Presentation.Controllers
         ///Kiểm tra mối quan hệ với người dùng khác
         ///</summary>
         [HttpGet("relationship/{targetHandle}")]
-        public async Task<IActionResult> GetRelationShipFriendRequest(string handle)
+        public async Task<IActionResult> GetRelationShipFriendRequest(string targetHandle)
         {
             var user = GetCurrentUser();
-            var result = await service.GetRelationShipStatusAsync(user, handle);
+            var result = await service.GetRelationShipStatusAsync(user, targetHandle);
             return Ok(result);
         }
 
@@ -155,10 +174,10 @@ namespace ChatApp.Presentation.Controllers
         ///xóa bạn bè
         ///</summary>
         [HttpDelete("{friendHandle}")]
-        public async Task<IActionResult> RemoveFriend(string handle)
+        public async Task<IActionResult> RemoveFriend(string friendHandle)
         {
             var user = GetCurrentUser();
-            var result = await service.RemoveRequestFriendAysnc(user, handle);
+            var result = await service.RemoveRequestFriendAysnc(user, friendHandle);
             return Ok(result);
         }
     }

@@ -1,0 +1,11 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.fontFamily": " JetBrains Mono, Consolas, 'Courier New', monospace",
+  "editor.mouseWheelZoom": true,
+  "editor.wordWrap": "on",
+  "files.autoSave": "afterDelay",
+  "editor.formatOnSave": true,
+  "[csharp]": {
+    "editor.defaultFormatter": "ms-dotnettools.csharp"
+  }
+}

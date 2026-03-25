@@ -1,4 +1,4 @@
-﻿using ChatApp.Application.DTOs;
+using ChatApp.Application.DTOs;
 using ChatApp.Application.Exceptions.Responses;
 using ChatApp.Domain.Enum;
 
@@ -9,6 +9,8 @@ namespace ChatApp.Application.Abstractions.IServices
         Task<GenericResponse<FriendRequestDto>> SendFriendRequestAsync(Guid userId, SendFriendRequestDto request);
 
         Task<GenericResponse<FriendRequestDto>> ResponseToFriendRequestAsync(Guid userId, ResponseFriendRequestDto request);
+
+        Task<Response> CancelFriendRequestAsync(Guid userId, Guid requestId);
 
         Task<Response> BlockUserAsync(Guid userid, BlockUserDto request);
 

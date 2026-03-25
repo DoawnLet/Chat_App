@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using ChatApp.Application.Exceptions.Responses;
@@ -132,12 +132,20 @@ namespace ChatApp.Infrastructure.Services
             CreateGroupConversationDto request
         )
         {
-            //Kiểm tra : tồn tại là friend chưa
-            var existReqFriend = await context
-                .Users.Where(u => request.MemberHandle.Contains(u.Handle) && u.IsActive)
+            var requestedHandles = (request.MemberHandle ?? new List<string>())
+                .Where(h => !string.IsNullOrWhiteSpace(h))
+                .Select(h => h.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (requestedHandles.Count == 0)
+                return new GenericResponse<ConversationDto>(false, "User not found");
+
+            var requestedUsers = await context
+                .Users.Where(u => requestedHandles.Contains(u.Handle) && u.IsActive)
                 .ToListAsync();
 
-            if (existReqFriend is null)
+            if (requestedUsers.Count == 0)
                 return new GenericResponse<ConversationDto>(false, "User not found");
 
             //Tạo nhóm
@@ -164,21 +172,29 @@ namespace ChatApp.Infrastructure.Services
             context.ConversationMembers.Add(creatorMember);
 
             //Thêm các member khác
-            var members = existReqFriend.Select(user => new ConversationMember
-            {
-                ConversationId = conversation.Id,
-                UserId = userId,
-                Role = MemberRole.Member,
-                JoinedAt = DateTimeOffset.Now,
-            });
+            var members = requestedUsers
+                .Where(u => u.Id != userId)
+                .Select(u => new ConversationMember
+                {
+                    ConversationId = conversation.Id,
+                    UserId = u.Id,
+                    Role = MemberRole.Member,
+                    JoinedAt = DateTimeOffset.UtcNow,
+                })
+                .ToList();
 
-            context.ConversationMembers.AddRange(members);
+            if (members.Count > 0)
+                context.ConversationMembers.AddRange(members);
 
             await context.SaveChangesAsync();
 
             //Reload
             var load = await LoadConversationMember(conversation.Id);
-            return new GenericResponse<ConversationDto>(true, "Create new group chat sucessfully");
+            return new GenericResponse<ConversationDto>(
+                true,
+                "Create new group chat sucessfully",
+                mapper.Map<ConversationDto>(load)
+            );
         }
 
         //Manage group
@@ -242,16 +258,21 @@ namespace ChatApp.Infrastructure.Services
             //Nếu là owner và còn members khác, cần tranfer ownership trước
             if (userMembership.Role == MemberRole.Owner)
             {
-                var otherMember = conversation.Members.Where(m => m.UserId == userId).ToList();
+                var otherMembers = conversation.Members.Where(m => m.UserId != userId).ToList();
 
-                if (otherMember.Any())
+                // If owner is the last member, delete the whole group conversation
+                if (otherMembers.Count == 0)
                 {
-                    var nextOwner =
-                        otherMember.FirstOrDefault(m => m.Role == MemberRole.Admin)
-                        ?? otherMember.First();
-
-                    nextOwner.UserId = userId;
+                    context.ConversationMembers.Remove(userMembership);
+                    context.Conversations.Remove(conversation);
+                    await context.SaveChangesAsync();
+                    return new Response(true, "Leave group chat successfull");
                 }
+
+                var nextOwner =
+                    otherMembers.FirstOrDefault(m => m.Role == MemberRole.Admin)
+                    ?? otherMembers.First();
+                nextOwner.Role = MemberRole.Owner;
             }
 
             context.ConversationMembers.Remove(userMembership);
@@ -367,14 +388,14 @@ namespace ChatApp.Infrastructure.Services
             if (userMembership.Role == MemberRole.Member)
                 return new Response(false, "Insufficient permission");
 
-            if (userMembership.Role == MemberRole.Admin && userMembership.Role == MemberRole.Member)
+            if (userMembership.Role == MemberRole.Admin && targetUser.Role != MemberRole.Member)
                 return new Response(false, "Admin cannot remove Owner or other Admin");
 
             //Không thể remove owner cuối cùng
             if (targetUser.Role == MemberRole.Owner)
             {
                 var ownerCount = conversation.Members.Count(m => m.Role == MemberRole.Owner);
-                if (ownerCount > 1)
+                if (ownerCount == 1)
                     return new Response(false, "Cannot remove the last owner");
             }
 
@@ -400,12 +421,8 @@ namespace ChatApp.Infrastructure.Services
             if (conversation is null)
                 return new Response(false, "Conversation not found");
 
-            var userMembership = await context.ConversationMembers.FirstOrDefaultAsync(m =>
-                m.UserId == userId
-            );
-            var targetUser = await context.ConversationMembers.FirstOrDefaultAsync(u =>
-                u.User.Handle == request.MemberHandle
-            );
+            var userMembership = conversation.Members.FirstOrDefault(m => m.UserId == userId);
+            var targetUser = conversation.Members.FirstOrDefault(m => m.User.Handle == request.MemberHandle);
             if (userMembership is null || targetUser is null)
                 return new Response(false, "Member not found");
 
@@ -421,7 +438,15 @@ namespace ChatApp.Infrastructure.Services
                     return new Response(false, "Cannot demote the last owner");
             }
 
-            targetUser.Role = MemberRole.Owner;
+            // If demoting an owner, ensure there is at least one owner left
+            if (targetUser.Role == MemberRole.Owner && request.NewRole != MemberRole.Owner)
+            {
+                var ownerCount = conversation.Members.Count(m => m.Role == MemberRole.Owner);
+                if (ownerCount == 1)
+                    return new Response(false, "Cannot demote the last owner");
+            }
+
+            targetUser.Role = request.NewRole;
             await context.SaveChangesAsync();
 
             return new Response(true, "Update role member successfully");
@@ -435,7 +460,7 @@ namespace ChatApp.Infrastructure.Services
         )
         {
             var converMember = await context.ConversationMembers.FirstOrDefaultAsync(c =>
-                c.User.Id == userId && c.Conversation.Id == conversationId
+                c.UserId == userId && c.ConversationId == conversationId
             );
 
             if (converMember is null)
@@ -520,10 +545,10 @@ namespace ChatApp.Infrastructure.Services
 
             var existingConversation = await context
                 .Conversations.Include(c => c.Members)
-                .ThenInclude(c => c.UserId)
+                .ThenInclude(m => m.User)
                 .FirstOrDefaultAsync(c => c.DirectKey == directKey);
 
-            if (existingConversation is null)
+            if (existingConversation is not null)
                 return new GenericResponse<ConversationDto>(
                     true,
                     "Conversation is existed",

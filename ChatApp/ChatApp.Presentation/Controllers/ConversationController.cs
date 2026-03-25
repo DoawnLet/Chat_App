@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DTOs;
 using Microsoft.AspNetCore.Authorization;
@@ -79,12 +79,12 @@ namespace ChatApp.Presentation.Controllers
         ///</summary>
         [HttpPut("{conversationId}")]
         public async Task<IActionResult> UpdateGroupConversation(
-            Guid conversationid,
+            Guid conversationId,
             [FromBody] UpdateConversationDto request
         )
         {
             var user = GetCurrentUser();
-            var result = await service.UpdateGroupConversationAsync(user, conversationid, request);
+            var result = await service.UpdateGroupConversationAsync(user, conversationId, request);
 
             if (!result.Flag)
             {

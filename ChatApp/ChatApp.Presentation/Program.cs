@@ -1,7 +1,6 @@
-﻿using ChatApp.Application.Abstractions.IServices;
+using ChatApp.Application.Abstractions.IServices;
 using ChatApp.Application.DependencyInjection;
 using ChatApp.Infrastructure.DependencyInjection;
-using ChatApp.Infrastructure.MessageActive;
 using ChatApp.Presentation.Realtime;
 using ChatApp.Presentation.Realtime.ChatHubs;
 using Microsoft.AspNetCore.CookiePolicy;
@@ -22,12 +21,10 @@ namespace ChatApp.Presentation
 
             builder.Services.AddInfrastructureService(builder.Configuration);
             builder.Services.AddApplicationService(builder.Configuration);
-            //builder.Services.AddShareServices(builder.Configuration);
+            
 
             builder.Services.AddScoped<IMessageBus, SignalRMessageBus>();
-            // Thêm MediatR registration
-            //builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(SendMessageHandler).Assembly));
-            //builder.Services.AddMediatR(cfg => cfg.RegisterServicesFromAssembly(typeof(ListMessageHandler).Assembly));
+            
             builder.Services.AddSignalR();
 
             builder.Services.AddCors(options =>
@@ -68,12 +65,13 @@ namespace ChatApp.Presentation
             app.UseCookiePolicy();
 
             app.UseSwaggerUI();
-
-            app.UseSharedPolices();
             // app.UseHttpsRedirection(); // Tạm thời disable cho development với HTTP frontend
 
             app.UseAuthentication();
             app.UseAuthorization();
+
+            // Convenience: redirect root to Swagger UI
+            app.MapGet("/", () => Results.Redirect("/swagger"));
 
             app.MapHub<ChatHub>("/hubs/chat");
             app.MapControllers();

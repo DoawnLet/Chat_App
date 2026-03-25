@@ -34,7 +34,7 @@ export function getErrorMessage(err: unknown): string {
 }
 
 const axiosConnected = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL,
+  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000",
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -42,19 +42,9 @@ const axiosConnected = axios.create({
   withCredentials: true, //QUan trọng cho cookie-based auth
 });
 
-// Request interceptor để thêm token nếu cần
+// Request interceptor: cookie JWT là HttpOnly nên browser JS không đọc được.
 axiosConnected.interceptors.request.use(
   (config) => {
-    // Có thể thêm token từ cookie hoặc localStorage
-    const token = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("token="))
-      ?.split("=")[1];
-
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
     return config;
   },
   (error) => {
